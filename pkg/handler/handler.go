@@ -13,7 +13,6 @@ const (
 	schemeHttp    = "http://"
 	schemeHttps   = "https://"
 	bodyIsInitial = "Body is initial"
-	Location      = "Location"
 )
 
 type Handler struct {
@@ -73,6 +72,6 @@ func (h *Handler) GetHandler(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	res.Header().Set(Location, string(fullUrl))
+	res.Header().Set("Location", string(fullUrl))
 	res.WriteHeader(http.StatusTemporaryRedirect)
 }
