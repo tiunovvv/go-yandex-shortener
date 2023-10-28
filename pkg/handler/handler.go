@@ -65,12 +65,12 @@ func (h *Handler) GetHandler(res http.ResponseWriter, req *http.Request) {
 	path := req.URL.RequestURI()
 	shortUrl := strings.Replace(path, "/", "", -1)
 
-	fullUrl, err := shortener.GetFullUrl(h.shorteners, shortUrl)
+	fullUrl, _ := shortener.GetFullUrl(h.shorteners, shortUrl)
 
-	if err != nil {
-		http.Error(res, err.Error(), http.StatusBadRequest)
-		return
-	}
+	// if err != nil {
+	// 	http.Error(res, err.Error(), http.StatusBadRequest)
+	// 	return
+	// }
 
 	res.Header().Set("Location", string(fullUrl))
 	res.WriteHeader(http.StatusTemporaryRedirect)
