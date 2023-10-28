@@ -12,7 +12,7 @@ const port = ":8080"
 
 func main() {
 
-	shorteners := shortener.CreateUrlMap()
+	shorteners := shortener.CreateURLMap()
 	handlers := handler.NewHandler(shorteners)
 	routers := mux.NewRouter()
 

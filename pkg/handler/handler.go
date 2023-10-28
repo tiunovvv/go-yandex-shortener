@@ -66,7 +66,7 @@ func (h *Handler) GetHandler(res http.ResponseWriter, req *http.Request) {
 	path := req.URL.RequestURI()
 	shortURL := strings.Replace(path, `/`, ``, -1)
 
-	fullURL, err := shortener.GetFullUrl(h.shorteners, shortURL)
+	fullURL, err := shortener.GetFullURL(h.shorteners, shortURL)
 
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusBadRequest)
