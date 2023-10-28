@@ -10,9 +10,10 @@ import (
 )
 
 const (
-	schemeHttp    = "http://"
-	schemeHttps   = "https://"
-	bodyIsInitial = "Body is initial"
+	schemeHTTP    = `http://`
+	schemeHTTPS   = `https://`
+	bodyIsInitial = `Body is initial`
+	Location      = `Location`
 )
 
 type Handler struct {
@@ -37,25 +38,25 @@ func (h *Handler) PostHandler(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	bodyUrl, err := url.ParseRequestURI(string(body))
+	bodyURL, err := url.ParseRequestURI(string(body))
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	shortUrl, err := shortener.AppendToMap(h.shorteners, bodyUrl)
+	shortURL, err := shortener.AppendToMap(h.shorteners, bodyURL)
 
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	scheme := schemeHttp
+	scheme := schemeHTTP
 	if req.TLS != nil {
-		scheme = schemeHttps
+		scheme = schemeHTTPS
 	}
 
-	url := scheme + req.Host + req.URL.RequestURI() + string(shortUrl)
+	url := scheme + req.Host + req.URL.RequestURI() + string(shortURL)
 
 	res.WriteHeader(http.StatusCreated)
 	res.Write([]byte(url))
@@ -63,15 +64,15 @@ func (h *Handler) PostHandler(res http.ResponseWriter, req *http.Request) {
 
 func (h *Handler) GetHandler(res http.ResponseWriter, req *http.Request) {
 	path := req.URL.RequestURI()
-	shortUrl := strings.Replace(path, "/", "", -1)
+	shortURL := strings.Replace(path, `/`, ``, -1)
 
-	fullUrl, _ := shortener.GetFullUrl(h.shorteners, shortUrl)
+	fullURL, err := shortener.GetFullUrl(h.shorteners, shortURL)
 
-	// if err != nil {
-	// 	http.Error(res, err.Error(), http.StatusBadRequest)
-	// 	return
-	// }
+	if err != nil {
+		http.Error(res, err.Error(), http.StatusBadRequest)
+		return
+	}
 
-	res.Header().Set("Location", string(fullUrl))
+	res.Header().Set(Location, string(fullURL))
 	res.WriteHeader(http.StatusTemporaryRedirect)
 }
