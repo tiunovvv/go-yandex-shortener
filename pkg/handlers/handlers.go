@@ -1,4 +1,4 @@
-package handler
+package handlers
 
 import (
 	"io"
@@ -6,22 +6,23 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/tiunovvv/go-yandex-shortener/pkg/shortener"
+	"github.com/tiunovvv/go-yandex-shortener/pkg/storage"
 )
 
 const (
 	schemeHTTP    = `http://`
 	schemeHTTPS   = `https://`
 	bodyIsInitial = `Body is initial`
+	idIsInitial   = `Id is initial`
 	Location      = `Location`
 )
 
 type Handler struct {
-	shorteners *shortener.URLShortener
+	storage *storage.URLShortener
 }
 
-func NewHandler(shorteners *shortener.URLShortener) *Handler {
-	return &Handler{shorteners: shorteners}
+func NewHandler(storage *storage.URLShortener) *Handler {
+	return &Handler{storage: storage}
 }
 
 func (h *Handler) PostHandler(res http.ResponseWriter, req *http.Request) {
@@ -44,7 +45,7 @@ func (h *Handler) PostHandler(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	shortURL, err := shortener.AppendToMap(h.shorteners, bodyURL)
+	shortURL, err := storage.AppendToMap(h.storage, bodyURL)
 
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusBadRequest)
@@ -66,7 +67,12 @@ func (h *Handler) GetHandler(res http.ResponseWriter, req *http.Request) {
 	path := req.URL.RequestURI()
 	shortURL := strings.Replace(path, `/`, ``, -1)
 
-	fullURL, err := shortener.GetFullURL(h.shorteners, shortURL)
+	if shortURL == "" {
+		http.Error(res, idIsInitial, http.StatusBadRequest)
+		return
+	}
+
+	fullURL, err := storage.GetFullURL(h.storage, shortURL)
 
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusBadRequest)
