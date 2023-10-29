@@ -8,7 +8,7 @@ import (
 
 func main() {
 
-	storage := storage.CreateURLMap()
+	storage := storage.CreateStorage()
 	handler := handlers.NewHandler(storage)
 	server := server.NewServer(handler)
 

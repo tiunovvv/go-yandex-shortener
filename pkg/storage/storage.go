@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
-	"net/url"
 )
 
 const (
@@ -30,14 +29,13 @@ func GenerateShortURL() ([]byte, error) {
 	return ret, nil
 }
 
-func CreateURLMap() *URLShortener {
+func CreateStorage() *URLShortener {
 	return &URLShortener{
 		Urls: make(map[string]string),
 	}
 }
 
-func AppendToMap(u *URLShortener, bodyURL *url.URL) ([]byte, error) {
-	url := []byte(bodyURL.Scheme + schemePrefix + bodyURL.Host + bodyURL.RequestURI())
+func AppendToMap(u *URLShortener, url []byte) ([]byte, error) {
 	if shortURL, urlExist := checkForValue(url, u.Urls); urlExist {
 		return shortURL, nil
 	} else {

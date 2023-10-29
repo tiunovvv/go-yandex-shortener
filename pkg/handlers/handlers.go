@@ -39,13 +39,12 @@ func (h *Handler) PostHandler(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	bodyURL, err := url.ParseRequestURI(string(body))
-	if err != nil {
+	if _, err := url.ParseRequestURI(string(body)); err != nil {
 		http.Error(res, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	shortURL, err := storage.AppendToMap(h.storage, bodyURL)
+	shortURL, err := storage.AppendToMap(h.storage, body)
 
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusBadRequest)
