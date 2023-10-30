@@ -1,4 +1,4 @@
-package handlers
+package handler
 
 import (
 	"bytes"
@@ -79,7 +79,8 @@ func TestPostHandler(t *testing.T) {
 
 			storage := storage.CreateStorage()
 			handler := NewHandler(storage)
-			handler.PostHandler(w, request)
+			router := handler.InitRoutes()
+			router.ServeHTTP(w, request)
 			result := w.Result()
 
 			assert.Equal(t, tt.want.statusCode, result.StatusCode)
@@ -121,7 +122,7 @@ func TestGetHandler(t *testing.T) {
 			mapValue: "http://www.yandex.ru",
 			request:  "http://localhost:8080/",
 			want: want{
-				statusCode: 400,
+				statusCode: 404,
 				location:   "",
 			},
 		},
@@ -139,13 +140,18 @@ func TestGetHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+
 			request := httptest.NewRequest(http.MethodGet, tt.request, nil)
+
 			w := httptest.NewRecorder()
 
 			storage := storage.CreateStorage()
 			storage.Urls[tt.mapKey] = tt.mapValue
+
 			handler := NewHandler(storage)
-			handler.GetHandler(w, request)
+			router := handler.InitRoutes()
+
+			router.ServeHTTP(w, request)
 			result := w.Result()
 
 			_, err := io.ReadAll(result.Body)

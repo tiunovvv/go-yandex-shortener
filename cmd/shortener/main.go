@@ -1,19 +1,22 @@
 package main
 
 import (
-	"github.com/tiunovvv/go-yandex-shortener/pkg/handlers"
+	"github.com/sirupsen/logrus"
+
+	"github.com/tiunovvv/go-yandex-shortener/pkg/handler"
 	"github.com/tiunovvv/go-yandex-shortener/pkg/server"
 	"github.com/tiunovvv/go-yandex-shortener/pkg/storage"
 )
 
+const port = "8080"
+
 func main() {
 
 	storage := storage.CreateStorage()
-	handler := handlers.NewHandler(storage)
-	server := server.NewServer(handler)
+	handler := handler.NewHandler(storage)
 
-	err := server.Run()
-	if err != nil {
-		panic(err)
+	srv := new(server.Server)
+	if err := srv.Run(string(port), handler.InitRoutes()); err != nil {
+		logrus.Fatalf("error occured while running http server: %s", err.Error())
 	}
 }
