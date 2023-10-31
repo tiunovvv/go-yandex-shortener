@@ -14,8 +14,9 @@ import (
 
 func TestPostHandler(t *testing.T) {
 	type post struct {
-		request string
-		body    string
+		request      string
+		body         string
+		shortURLBase string
 	}
 	type want struct {
 		statusCode int
@@ -29,8 +30,9 @@ func TestPostHandler(t *testing.T) {
 		{
 			name: "positive test:short body",
 			post: post{
-				request: "http://localhost:8080/",
-				body:    "http://www.yandex.ru",
+				request:      "http://localhost:8080/",
+				body:         "http://www.yandex.ru",
+				shortURLBase: "http://localhost:8080/",
 			},
 			want: want{
 				statusCode: 201,
@@ -40,8 +42,9 @@ func TestPostHandler(t *testing.T) {
 		{
 			name: "positive test:very long body",
 			post: post{
-				request: "http://localhost:8080/",
-				body:    "https://www.google.com/search?q=golang+assert+string+contains+string&oq=golang+assert+string+contains+string&gs_lcrp=EgZjaHJvbWUyBggAEEUYOTIKCAEQIRgWGB0YHjIKCAIQIRgWGB0YHtIBCDkyNzVqMGo0qAIAsAIA&sourceid=chrome&ie=UTF-8",
+				request:      "http://localhost:8080/",
+				body:         "https://www.google.com/search?q=golang+assert+string+contains+string&oq=golang+assert+string+contains+string&gs_lcrp=EgZjaHJvbWUyBggAEEUYOTIKCAEQIRgWGB0YHjIKCAIQIRgWGB0YHtIBCDkyNzVqMGo0qAIAsAIA&sourceid=chrome&ie=UTF-8",
+				shortURLBase: "http://localhost:8080/",
 			},
 			want: want{
 				statusCode: 201,
@@ -51,8 +54,9 @@ func TestPostHandler(t *testing.T) {
 		{
 			name: "negativ test:initial body",
 			post: post{
-				request: "http://localhost:8080/",
-				body:    "",
+				request:      "http://localhost:8080/",
+				body:         "",
+				shortURLBase: "http://localhost:8080/",
 			},
 			want: want{
 				statusCode: 400,
@@ -62,8 +66,9 @@ func TestPostHandler(t *testing.T) {
 		{
 			name: "negativ test:body is not url",
 			post: post{
-				request: "http://localhost:8080/",
-				body:    "12345",
+				request:      "http://localhost:8080/",
+				body:         "12345",
+				shortURLBase: "http://localhost:8080/",
 			},
 			want: want{
 				statusCode: 400,
@@ -78,7 +83,7 @@ func TestPostHandler(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			storage := storage.CreateStorage()
-			handler := NewHandler(storage)
+			handler := NewHandler(storage, tt.post.shortURLBase)
 			router := handler.InitRoutes()
 			router.ServeHTTP(w, request)
 			result := w.Result()
@@ -100,37 +105,41 @@ func TestGetHandler(t *testing.T) {
 		location   string
 	}
 	tests := []struct {
-		name     string
-		request  string
-		mapKey   string
-		mapValue string
-		want     want
+		name         string
+		request      string
+		mapKey       string
+		mapValue     string
+		shortURLBase string
+		want         want
 	}{
 		{
-			name:     "positive test #1",
-			mapKey:   "OWjwkttu",
-			mapValue: "http://www.yandex.ru",
-			request:  "http://localhost:8080/OWjwkttu",
+			name:         "positive test #1",
+			mapKey:       "OWjwkttu",
+			mapValue:     "http://www.yandex.ru",
+			request:      "http://localhost:8080/OWjwkttu",
+			shortURLBase: "http://localhost:8080/",
 			want: want{
 				statusCode: 307,
 				location:   "http://www.yandex.ru",
 			},
 		},
 		{
-			name:     "negativ test: initial shortURL",
-			mapKey:   "OWjwkttu",
-			mapValue: "http://www.yandex.ru",
-			request:  "http://localhost:8080/",
+			name:         "negativ test: initial shortURL",
+			mapKey:       "OWjwkttu",
+			mapValue:     "http://www.yandex.ru",
+			request:      "http://localhost:8080/",
+			shortURLBase: "http://localhost:8080/",
 			want: want{
 				statusCode: 404,
 				location:   "",
 			},
 		},
 		{
-			name:     "negativ test: shortURL doesn't exist",
-			mapKey:   "OWjwkttu",
-			mapValue: "http://www.yandex.ru",
-			request:  "http://localhost:8080/123",
+			name:         "negativ test: shortURL doesn't exist",
+			mapKey:       "OWjwkttu",
+			mapValue:     "http://www.yandex.ru",
+			request:      "http://localhost:8080/123",
+			shortURLBase: "http://localhost:8080/",
 			want: want{
 				statusCode: 400,
 				location:   "",
@@ -148,7 +157,7 @@ func TestGetHandler(t *testing.T) {
 			storage := storage.CreateStorage()
 			storage.Urls[tt.mapKey] = tt.mapValue
 
-			handler := NewHandler(storage)
+			handler := NewHandler(storage, tt.shortURLBase)
 			router := handler.InitRoutes()
 
 			router.ServeHTTP(w, request)
