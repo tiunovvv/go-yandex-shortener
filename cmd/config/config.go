@@ -6,7 +6,7 @@ import (
 
 const (
 	ServerAddress = "localhost:8080"
-	ShortURLBase  = "http://localhost:8080/"
+	ShortURLBase  = "http://localhost:8080"
 )
 
 type ServerParametrs struct {

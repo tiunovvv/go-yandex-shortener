@@ -62,7 +62,7 @@ func (h *Handler) PostHandler(c *gin.Context) {
 		return
 	}
 
-	url := h.shortURLBase + string(shortURL)
+	url := h.shortURLBase + c.Request.URL.RequestURI() + string(shortURL)
 
 	c.Status(http.StatusCreated)
 	c.Writer.Write([]byte(url))
