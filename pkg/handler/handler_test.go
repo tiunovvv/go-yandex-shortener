@@ -73,9 +73,9 @@ func TestPostHandler(t *testing.T) {
 		},
 	}
 
-	serverStartURL := config.ServerStartURL{"localhost", 8080}
-	baseShortURL := config.BaseShortURL{"http", "localhost", 8080}
-	config := config.Config{&serverStartURL, &baseShortURL}
+	serverStartURL := config.ServerStartURL{Host: "localhost", Port: 8080}
+	baseShortURL := config.BaseShortURL{TLS: "http", Host: "localhost", Port: 8080}
+	config := config.Config{ServerStartURL: &serverStartURL, BaseShortURL: &baseShortURL}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -143,9 +143,9 @@ func TestGetHandler(t *testing.T) {
 		},
 	}
 
-	serverStartURL := config.ServerStartURL{"localhost", 8080}
-	baseShortURL := config.BaseShortURL{"http", "localhost", 8080}
-	config := config.Config{&serverStartURL, &baseShortURL}
+	serverStartURL := config.ServerStartURL{Host: "localhost", Port: 8080}
+	baseShortURL := config.BaseShortURL{TLS: "http", Host: "localhost", Port: 8080}
+	config := config.Config{ServerStartURL: &serverStartURL, BaseShortURL: &baseShortURL}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
