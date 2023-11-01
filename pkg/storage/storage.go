@@ -4,6 +4,8 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
+
+	"github.com/tiunovvv/go-yandex-shortener/cmd/config"
 )
 
 const (
@@ -14,7 +16,8 @@ const (
 )
 
 type URLShortener struct {
-	Urls map[string]string
+	Urls   map[string]string
+	Config *config.Config
 }
 
 func GenerateShortURL() ([]byte, error) {
@@ -29,9 +32,10 @@ func GenerateShortURL() ([]byte, error) {
 	return ret, nil
 }
 
-func CreateStorage() *URLShortener {
+func CreateStorage(config *config.Config) *URLShortener {
 	return &URLShortener{
-		Urls: make(map[string]string),
+		Urls:   make(map[string]string),
+		Config: config,
 	}
 }
 

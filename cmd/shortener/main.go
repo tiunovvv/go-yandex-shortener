@@ -10,13 +10,13 @@ import (
 )
 
 func main() {
-	serverParametrs := config.InitConfig()
-	storage := storage.CreateStorage()
-	handler := handler.NewHandler(storage, serverParametrs.ShortURLBase)
+	configs := config.InitConfig()
+	storage := storage.CreateStorage(configs)
+	handler := handler.NewHandler(storage)
 
 	srv := new(server.Server)
 
-	if err := srv.Run(serverParametrs.ServerAddress, handler.InitRoutes()); err != nil {
+	if err := srv.Run(configs.ServerStartURL.String(), handler.InitRoutes()); err != nil {
 		logrus.Fatalf("error occured while running http server: %s", err.Error())
 	}
 }

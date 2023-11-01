@@ -1,26 +1,87 @@
 package config
 
 import (
+	"errors"
 	"flag"
+	"fmt"
+	"strconv"
+	"strings"
 )
 
-const (
-	ServerAddress = "localhost:8080"
-	ShortURLBase  = "http://localhost:8080"
-)
-
-type ServerParametrs struct {
-	ServerAddress string
-	ShortURLBase  string
+type Config struct {
+	*ServerStartURL
+	*BaseShortURL
 }
 
-func InitConfig() *ServerParametrs {
-	serverParametrs := &ServerParametrs{}
+type ServerStartURL struct {
+	Host string
+	Port int
+}
 
-	flag.StringVar(&serverParametrs.ServerAddress, "a", ServerAddress, "HTTP server start address")
-	flag.StringVar(&serverParametrs.ShortURLBase, "b", ShortURLBase, "Base address of the resulting shortened URL")
+func (s *ServerStartURL) Set(value string) error {
+	hp := strings.Split(value, ":")
+	if len(hp) != 2 {
+		return errors.New("need address in a form host:port")
+	}
+
+	port, err := strconv.Atoi(hp[1])
+	if err != nil {
+		return err
+	}
+
+	s.Host = hp[0]
+	s.Port = port
+	return nil
+}
+
+func (s *ServerStartURL) String() string {
+	return s.Host + ":" + strconv.Itoa(s.Port)
+}
+
+type BaseShortURL struct {
+	TLS  string
+	Host string
+	Port int
+}
+
+func (b *BaseShortURL) Set(value string) error {
+	hp := strings.Split(value, ":")
+	if len(hp) != 3 {
+		return errors.New("need address in a form tls://host:port")
+	}
+
+	port, err := strconv.Atoi(hp[2])
+	if err != nil {
+		return err
+	}
+
+	idx := strings.Index(hp[1], "//")
+	if idx < 0 {
+		return fmt.Errorf("need address in a form tls://host:port")
+	}
+
+	b.TLS = hp[0]
+	b.Host = hp[1]
+	b.Host = strings.ReplaceAll(b.Host, "//", "")
+	b.Port = port
+	return nil
+}
+
+func (b *BaseShortURL) String() string {
+	return b.TLS + "://" + b.Host + ":" + strconv.Itoa(b.Port)
+}
+
+func InitConfig() *Config {
+	serverStartURL := ServerStartURL{"localhost", 8080}
+	flag.Var(&serverStartURL, "a", "server start URL")
+
+	baseShortURL := BaseShortURL{"http", "localhost", 8080}
+	flag.Var(&baseShortURL, "b", "base of short URL")
 
 	flag.Parse()
 
-	return serverParametrs
+	return &Config{
+		&serverStartURL,
+		&baseShortURL,
+	}
 }

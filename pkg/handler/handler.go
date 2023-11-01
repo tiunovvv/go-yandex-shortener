@@ -19,14 +19,13 @@ const (
 )
 
 type Handler struct {
-	storage      *storage.URLShortener
-	shortURLBase string
+	storage *storage.URLShortener
 }
 
-func NewHandler(storage *storage.URLShortener, shortURLBase string) *Handler {
+func NewHandler(storage *storage.URLShortener) *Handler {
 	return &Handler{
-		storage:      storage,
-		shortURLBase: shortURLBase}
+		storage: storage,
+	}
 }
 
 func (h *Handler) InitRoutes() *gin.Engine {
@@ -62,7 +61,7 @@ func (h *Handler) PostHandler(c *gin.Context) {
 		return
 	}
 
-	url := h.shortURLBase + c.Request.URL.RequestURI() + string(shortURL)
+	url := h.storage.Config.BaseShortURL.String() + c.Request.URL.RequestURI() + string(shortURL)
 
 	c.Status(http.StatusCreated)
 	c.Writer.Write([]byte(url))
