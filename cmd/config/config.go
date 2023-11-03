@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -73,12 +74,23 @@ func (b *BaseShortURL) String() string {
 
 func InitConfig() *Config {
 	serverStartURL := ServerStartURL{"localhost", 8080}
-	flag.Var(&serverStartURL, "a", "server start URL")
-
 	baseShortURL := BaseShortURL{"http", "localhost", 8080}
+
+	flag.Var(&serverStartURL, "a", "server start URL")
 	flag.Var(&baseShortURL, "b", "base of short URL")
 
 	flag.Parse()
+
+	envServerAddress := os.Getenv("SERVER_ADDRESS")
+	if envServerAddress != "" {
+		serverStartURL.Set(envServerAddress)
+	}
+
+	envBaseShortURL := os.Getenv("BASE_URL")
+
+	if envBaseShortURL != "" {
+		baseShortURL.Set(envBaseShortURL)
+	}
 
 	return &Config{
 		&serverStartURL,
