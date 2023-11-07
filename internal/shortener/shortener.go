@@ -18,9 +18,9 @@ func NewShortener(storage *storage.Storage) *Shortener {
 	}
 }
 
-func (sh *Shortener) GetShortURL(fullURL string, uri string) string {
+func (sh *Shortener) GetShortURL(fullURL string, path string) string {
 	if shortURL := sh.storage.FindByFullURL(fullURL); shortURL != "" {
-		return sh.storage.Config.BaseURL + uri + shortURL
+		return sh.storage.Config.BaseURL + path + shortURL
 	}
 
 	shortURL := sh.GenerateShortURL()
@@ -29,7 +29,7 @@ func (sh *Shortener) GetShortURL(fullURL string, uri string) string {
 	}
 
 	sh.storage.SaveURL(fullURL, shortURL)
-	return sh.storage.Config.BaseURL + "/" + shortURL
+	return sh.storage.Config.BaseURL + path + shortURL
 }
 
 func (sh *Shortener) GetFullURL(shortURL string) (string, error) {
