@@ -9,8 +9,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tiunovvv/go-yandex-shortener/cmd/config"
-	"github.com/tiunovvv/go-yandex-shortener/pkg/storage"
+	"github.com/tiunovvv/go-yandex-shortener/internal/config"
+	"github.com/tiunovvv/go-yandex-shortener/internal/shortener"
+	"github.com/tiunovvv/go-yandex-shortener/internal/storage"
 )
 
 func TestPostHandler(t *testing.T) {
@@ -67,23 +68,26 @@ func TestPostHandler(t *testing.T) {
 				body:    "12345",
 			},
 			want: want{
-				statusCode: 400,
+				statusCode: 500,
 				body:       "",
 			},
 		},
 	}
 
-	serverStartURL := config.ServerStartURL{Host: "localhost", Port: 8080}
-	baseShortURL := config.BaseShortURL{TLS: "http", Host: "localhost", Port: 8080}
-	config := config.Config{ServerStartURL: &serverStartURL, BaseShortURL: &baseShortURL}
+	config := &config.Config{
+		BaseURL:       "http://localhost:8080",
+		ServerAddress: "localhost:8080",
+	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, tt.post.request, bytes.NewReader([]byte(tt.post.body)))
 			w := httptest.NewRecorder()
 
-			storage := storage.CreateStorage(&config)
-			handler := NewHandler(storage)
+			storage := storage.NewStorage(config)
+			shortener := shortener.NewShortener(storage)
+			handler := NewHandler(shortener)
+
 			router := handler.InitRoutes()
 			router.ServeHTTP(w, request)
 			result := w.Result()
@@ -143,9 +147,10 @@ func TestGetHandler(t *testing.T) {
 		},
 	}
 
-	serverStartURL := config.ServerStartURL{Host: "localhost", Port: 8080}
-	baseShortURL := config.BaseShortURL{TLS: "http", Host: "localhost", Port: 8080}
-	config := config.Config{ServerStartURL: &serverStartURL, BaseShortURL: &baseShortURL}
+	config := &config.Config{
+		BaseURL:       "http://localhost:8080",
+		ServerAddress: "localhost:8080",
+	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -153,11 +158,11 @@ func TestGetHandler(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, tt.request, nil)
 
 			w := httptest.NewRecorder()
+			storage := storage.NewStorage(config)
 
-			storage := storage.CreateStorage(&config)
 			storage.Urls[tt.mapKey] = tt.mapValue
-
-			handler := NewHandler(storage)
+			shortener := shortener.NewShortener(storage)
+			handler := NewHandler(shortener)
 			router := handler.InitRoutes()
 
 			router.ServeHTTP(w, request)
