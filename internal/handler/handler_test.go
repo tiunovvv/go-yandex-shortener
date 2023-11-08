@@ -75,7 +75,7 @@ func TestPostHandler(t *testing.T) {
 	}
 
 	config := &config.Config{
-		BaseURL:       "http://localhost:8080",
+		BaseURL:       "http://localhost:8080/",
 		ServerAddress: "localhost:8080",
 	}
 
@@ -148,7 +148,7 @@ func TestGetHandler(t *testing.T) {
 	}
 
 	config := &config.Config{
-		BaseURL:       "http://localhost:8080",
+		BaseURL:       "http://localhost:8080/",
 		ServerAddress: "localhost:8080",
 	}
 
