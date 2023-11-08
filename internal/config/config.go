@@ -33,7 +33,7 @@ func getServerAddress(flagServerAddress *string) string {
 		return envServerAddress
 	}
 
-	if flagServerAddress != nil {
+	if flagServerAddress != nil && *flagServerAddress != "" {
 		return *flagServerAddress
 	}
 
