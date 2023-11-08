@@ -1,8 +1,8 @@
 package handler
 
 import (
-	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -45,7 +45,7 @@ func (h *Handler) PostHandler(c *gin.Context) {
 
 	if _, err := url.ParseRequestURI(fullURL); err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
-		fmt.Printf("%s is not URL", fullURL)
+		log.Printf("%s is not URL", fullURL)
 		return
 	}
 

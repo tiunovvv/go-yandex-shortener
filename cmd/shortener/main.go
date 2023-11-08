@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 
 	"github.com/tiunovvv/go-yandex-shortener/internal/config"
 	"github.com/tiunovvv/go-yandex-shortener/internal/handler"
@@ -18,6 +18,6 @@ func main() {
 
 	srv := new(server.Server)
 	if err := srv.Run(config.ServerAddress, handler.InitRoutes()); err != nil {
-		fmt.Printf("error occured while running http server: %v", err)
+		log.Printf("error occured while running http server: %v", err)
 	}
 }
