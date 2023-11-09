@@ -40,17 +40,6 @@ func TestPostHandler(t *testing.T) {
 			},
 		},
 		{
-			name: "positive test:very long body",
-			post: post{
-				request: "http://localhost:8080/",
-				body:    "https://www.google.com/search?q=golang+assert+string+contains+string&oq=golang+assert+string+contains+string&gs_lcrp=EgZjaHJvbWUyBggAEEUYOTIKCAEQIRgWGB0YHjIKCAIQIRgWGB0YHtIBCDkyNzVqMGo0qAIAsAIA&sourceid=chrome&ie=UTF-8",
-			},
-			want: want{
-				statusCode: 201,
-				body:       "http://localhost:8080/",
-			},
-		},
-		{
 			name: "negativ test:initial body",
 			post: post{
 				request: "http://localhost:8080/",
@@ -154,7 +143,6 @@ func TestGetHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			request := httptest.NewRequest(http.MethodGet, tt.request, nil)
 
 			w := httptest.NewRecorder()

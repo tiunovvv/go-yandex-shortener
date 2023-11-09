@@ -24,16 +24,14 @@ func (sh *Shortener) GetShortURL(fullURL string, path string) string {
 	}
 
 	shortURL := sh.GenerateShortURL()
-	for sh.storage.FindByShortURL(shortURL) {
+	for sh.storage.SaveURL(fullURL, shortURL) != nil {
 		shortURL = sh.GenerateShortURL()
 	}
 
-	sh.storage.SaveURL(fullURL, shortURL)
 	return sh.storage.Config.BaseURL + path + shortURL
 }
 
 func (sh *Shortener) GetFullURL(shortURL string) (string, error) {
-
 	if fullURL := sh.storage.GetFullURL(shortURL); fullURL != "" {
 		return fullURL, nil
 	}
@@ -43,7 +41,8 @@ func (sh *Shortener) GetFullURL(shortURL string) (string, error) {
 
 func (sh *Shortener) GenerateShortURL() string {
 	rand.New(rand.NewSource(time.Now().UnixNano()))
-	str := make([]byte, 8)
+	const length = 8
+	str := make([]byte, length)
 
 	charset := "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 	for i := range str {

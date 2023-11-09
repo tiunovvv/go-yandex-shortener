@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 )
@@ -10,13 +11,22 @@ type Server struct {
 }
 
 func (s *Server) Run(serverAddress string, handler http.Handler) error {
+	const (
+		seconds = 10
+		bytes   = 20
+	)
+
 	s.httpServer = &http.Server{
 		Addr:           serverAddress,
 		Handler:        handler,
-		MaxHeaderBytes: 1 << 20,
-		ReadTimeout:    10 * time.Second,
-		WriteTimeout:   10 * time.Second,
+		MaxHeaderBytes: 1 << bytes,
+		ReadTimeout:    seconds * time.Second,
+		WriteTimeout:   seconds * time.Second,
 	}
 
-	return s.httpServer.ListenAndServe()
+	if err := s.httpServer.ListenAndServe(); err != nil {
+		return fmt.Errorf("server ListenAndServe error: %w", err)
+	}
+
+	return nil
 }

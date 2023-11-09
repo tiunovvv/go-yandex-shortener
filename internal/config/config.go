@@ -41,7 +41,6 @@ func getServerAddress(flagServerAddress *string) string {
 }
 
 func getBaseURL(flagBaseURL *string) string {
-
 	if envBaseURL := os.Getenv("BASE_URL"); envBaseURL != "" && checkBaseURL(envBaseURL) {
 		return envBaseURL
 	}
@@ -54,10 +53,14 @@ func getBaseURL(flagBaseURL *string) string {
 }
 
 func checkBaseURL(str string) bool {
-
 	substr := strings.Split(str, ":")
-	if len(substr) != 3 {
-		log.Printf("%s is not in a form tls://host:port", str)
+	const (
+		length     = 3
+		isNotAForm = "%s is not in a form tls://host:port"
+	)
+
+	if len(substr) != length {
+		log.Printf(isNotAForm, str)
 		return false
 	}
 
@@ -67,7 +70,7 @@ func checkBaseURL(str string) bool {
 	}
 
 	if idx := strings.Index(substr[1], "//"); idx < 0 {
-		log.Printf("%s is not in a form tls://host:port", str)
+		log.Printf(isNotAForm, str)
 		return false
 	}
 

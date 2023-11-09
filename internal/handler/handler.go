@@ -29,7 +29,6 @@ func (h *Handler) InitRoutes() *gin.Engine {
 }
 
 func (h *Handler) PostHandler(c *gin.Context) {
-
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		newErrorResponce(c, http.StatusBadRequest, err.Error())
@@ -51,13 +50,16 @@ func (h *Handler) PostHandler(c *gin.Context) {
 
 	shortURL := h.shortener.GetShortURL(fullURL, c.Request.URL.RequestURI())
 	c.Status(http.StatusCreated)
-	c.Writer.Write([]byte(shortURL))
+
+	if _, err := c.Writer.Write([]byte(shortURL)); err != nil {
+		c.AbortWithStatus(http.StatusInternalServerError)
+		log.Printf("Cant write %s into body", shortURL)
+	}
 }
 
 func (h *Handler) GetHandler(c *gin.Context) {
-
 	path := c.Request.URL.RequestURI()
-	shortURL := strings.Replace(path, "/", "", -1)
+	shortURL := strings.ReplaceAll(path, "/", "")
 
 	if shortURL == "" {
 		c.AbortWithStatusJSON(http.StatusBadRequest, "is not a form baseURL/shortURL")
