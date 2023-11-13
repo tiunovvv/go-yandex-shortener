@@ -1,11 +1,14 @@
 package shortener
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"time"
 
 	"github.com/tiunovvv/go-yandex-shortener/internal/storage"
+
+	myErrors "github.com/tiunovvv/go-yandex-shortener/internal/errors"
 )
 
 type Shortener struct {
@@ -24,7 +27,7 @@ func (sh *Shortener) GetShortURL(fullURL string, path string) string {
 	}
 
 	shortURL := sh.GenerateShortURL()
-	for sh.storage.SaveURL(fullURL, shortURL) != nil {
+	for errors.Is(sh.storage.SaveURL(fullURL, shortURL), &myErrors.KeyAlreadyExistsError{Key: shortURL}) {
 		shortURL = sh.GenerateShortURL()
 	}
 

@@ -1,9 +1,8 @@
 package storage
 
 import (
-	"fmt"
-
 	"github.com/tiunovvv/go-yandex-shortener/internal/config"
+	"github.com/tiunovvv/go-yandex-shortener/internal/errors"
 )
 
 type Storage struct {
@@ -19,8 +18,8 @@ func NewStorage(cfg *config.Config) *Storage {
 }
 
 func (s *Storage) SaveURL(url string, shortURL string) error {
-	if _, exists := s.Urls[shortURL]; exists {
-		return fmt.Errorf("кey already exists")
+	if key, exists := s.Urls[shortURL]; exists {
+		return &errors.KeyAlreadyExistsError{Key: key}
 	}
 	s.Urls[shortURL] = url
 	return nil
