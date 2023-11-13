@@ -27,7 +27,7 @@ func (sh *Shortener) GetShortURL(fullURL string, path string) string {
 	}
 
 	shortURL := sh.GenerateShortURL()
-	for errors.Is(sh.storage.SaveURL(fullURL, shortURL), &myErrors.KeyAlreadyExistsError{Key: shortURL}) {
+	for errors.Is(sh.storage.SaveURL(fullURL, shortURL), myErrors.ErrKeyAlreadyExists) {
 		shortURL = sh.GenerateShortURL()
 	}
 
