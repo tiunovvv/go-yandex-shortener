@@ -8,7 +8,9 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/tiunovvv/go-yandex-shortener/internal/logger"
 	"github.com/tiunovvv/go-yandex-shortener/internal/shortener"
+	"go.uber.org/zap"
 )
 
 type Handler struct {
@@ -21,8 +23,9 @@ func NewHandler(shortener *shortener.Shortener) *Handler {
 	}
 }
 
-func (h *Handler) InitRoutes() *gin.Engine {
+func (h *Handler) InitRoutes(s *zap.SugaredLogger) *gin.Engine {
 	router := gin.New()
+	router.Use(logger.Hello(s))
 	router.POST("/", h.PostHandler)
 	router.GET("/:id", h.GetHandler)
 	return router

@@ -39,7 +39,7 @@ func (sh *Shortener) GetFullURL(shortURL string) (string, error) {
 		return fullURL, nil
 	}
 
-	return "", fmt.Errorf("URL \"%s\" not found", shortURL)
+	return "", fmt.Errorf("URL `%s` not found", shortURL)
 }
 
 func (sh *Shortener) GenerateShortURL() string {
