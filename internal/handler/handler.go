@@ -25,7 +25,7 @@ func NewHandler(shortener *shortener.Shortener) *Handler {
 
 func (h *Handler) InitRoutes(s *zap.SugaredLogger) *gin.Engine {
 	router := gin.New()
-	router.Use(logger.Hello(s))
+	router.Use(logger.WithLogging(s))
 	router.POST("/", h.PostHandler)
 	router.GET("/:id", h.GetHandler)
 	return router

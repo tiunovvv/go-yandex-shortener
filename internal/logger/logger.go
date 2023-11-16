@@ -29,7 +29,7 @@ func InitLogger() (*zap.Logger, error) {
 	return logger, nil
 }
 
-func Hello(s *zap.SugaredLogger) gin.HandlerFunc {
+func WithLogging(s *zap.SugaredLogger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 
