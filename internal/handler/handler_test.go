@@ -74,12 +74,12 @@ func TestPostHandler(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, tt.post.request, bytes.NewReader([]byte(tt.post.body)))
 			w := httptest.NewRecorder()
 
+			logger, _ := logger.InitLogger()
 			storage := storage.NewStorage(config)
 			shortener := shortener.NewShortener(storage)
-			handler := NewHandler(shortener)
-			logger, _ := logger.InitLogger()
+			handler := NewHandler(shortener, logger)
 
-			router := handler.InitRoutes(logger.Sugar())
+			router := handler.InitRoutes()
 			router.ServeHTTP(w, request)
 			result := w.Result()
 
@@ -151,11 +151,11 @@ func TestGetHandler(t *testing.T) {
 			storage := storage.NewStorage(config)
 
 			storage.Urls[tt.mapKey] = tt.mapValue
-			shortener := shortener.NewShortener(storage)
-			handler := NewHandler(shortener)
 			logger, _ := logger.InitLogger()
-			router := handler.InitRoutes(logger.Sugar())
+			shortener := shortener.NewShortener(storage)
+			handler := NewHandler(shortener, logger)
 
+			router := handler.InitRoutes()
 			router.ServeHTTP(w, request)
 			result := w.Result()
 
@@ -166,6 +166,76 @@ func TestGetHandler(t *testing.T) {
 
 			assert.Equal(t, tt.want.statusCode, result.StatusCode)
 			assert.Equal(t, tt.want.location, result.Header.Get("Location"))
+		})
+	}
+}
+
+func TestPostApiHandler(t *testing.T) {
+	type post struct {
+		request string
+		body    string
+	}
+	type want struct {
+		statusCode int
+	}
+	tests := []struct {
+		name string
+		post post
+		want want
+	}{
+		{
+			name: "positive test",
+			post: post{
+				request: "http://localhost:8080/api/shorten",
+				body:    "{\"url\":\"https://practicum.yandex.ru\"}",
+			},
+			want: want{
+				statusCode: 201,
+			},
+		},
+		{
+			name: "negativ test:initial body",
+			post: post{
+				request: "http://localhost:8080/api/shorten",
+				body:    "",
+			},
+			want: want{
+				statusCode: 500,
+			},
+		},
+		{
+			name: "negativ test:body is not url",
+			post: post{
+				request: "http://localhost:8080/api/shorten",
+				body:    "{\"url\":\"practicum\"}",
+			},
+			want: want{
+				statusCode: 500,
+			},
+		},
+	}
+
+	config := &config.Config{
+		BaseURL:       "http://localhost:8080/",
+		ServerAddress: "localhost:8080",
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodPost, tt.post.request, bytes.NewReader([]byte(tt.post.body)))
+
+			w := httptest.NewRecorder()
+			logger, _ := logger.InitLogger()
+			storage := storage.NewStorage(config)
+			shortener := shortener.NewShortener(storage)
+			handler := NewHandler(shortener, logger)
+
+			router := handler.InitRoutes()
+			router.ServeHTTP(w, request)
+			result := w.Result()
+
+			assert.Equal(t, tt.want.statusCode, result.StatusCode)
+			_ = result.Body.Close()
 		})
 	}
 }

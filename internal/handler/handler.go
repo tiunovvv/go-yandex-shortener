@@ -1,32 +1,38 @@
 package handler
 
 import (
+	"encoding/json"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/tiunovvv/go-yandex-shortener/internal/logger"
+	"github.com/tiunovvv/go-yandex-shortener/internal/models"
 	"github.com/tiunovvv/go-yandex-shortener/internal/shortener"
 	"go.uber.org/zap"
 )
 
+const isNotURL = "%s is not URL"
+
 type Handler struct {
 	shortener *shortener.Shortener
+	logger    *zap.Logger
 }
 
-func NewHandler(shortener *shortener.Shortener) *Handler {
+func NewHandler(shortener *shortener.Shortener, logger *zap.Logger) *Handler {
 	return &Handler{
 		shortener: shortener,
+		logger:    logger,
 	}
 }
 
-func (h *Handler) InitRoutes(s *zap.SugaredLogger) *gin.Engine {
+func (h *Handler) InitRoutes() *gin.Engine {
 	router := gin.New()
-	router.Use(logger.WithLogging(s))
+	router.Use(logger.WithLogging(h.logger.Sugar()))
 	router.POST("/", h.PostHandler)
+	router.POST("/api/shorten", h.PostAPIHandler)
 	router.GET("/:id", h.GetHandler)
 	return router
 }
@@ -47,7 +53,7 @@ func (h *Handler) PostHandler(c *gin.Context) {
 
 	if _, err := url.ParseRequestURI(fullURL); err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
-		log.Printf("%s is not URL", fullURL)
+		h.logger.Sugar().Error(isNotURL, fullURL)
 		return
 	}
 
@@ -56,7 +62,7 @@ func (h *Handler) PostHandler(c *gin.Context) {
 
 	if _, err := c.Writer.Write([]byte(shortURL)); err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
-		log.Printf("Cant write %s into body", shortURL)
+		h.logger.Sugar().Error("Cant write %s into body", shortURL)
 	}
 }
 
@@ -78,4 +84,26 @@ func (h *Handler) GetHandler(c *gin.Context) {
 
 	c.Writer.Header().Set("Location", fullURL)
 	c.Status(http.StatusTemporaryRedirect)
+}
+
+func (h *Handler) PostAPIHandler(c *gin.Context) {
+	var req models.RequestAPIShorten
+	dec := json.NewDecoder(c.Request.Body)
+	if err := dec.Decode(&req); err != nil {
+		h.logger.Sugar().Error("cannot decode request JSON body")
+		c.AbortWithStatus(http.StatusInternalServerError)
+		return
+	}
+
+	fullURL := req.URL
+
+	if _, err := url.ParseRequestURI(fullURL); err != nil {
+		c.AbortWithStatus(http.StatusInternalServerError)
+		h.logger.Sugar().Error(isNotURL, fullURL)
+		return
+	}
+
+	shortURL := h.shortener.GetShortURL(fullURL, "/")
+	resp := models.ResponseAPIShorten{Result: shortURL}
+	c.AbortWithStatusJSON(http.StatusCreated, resp)
 }

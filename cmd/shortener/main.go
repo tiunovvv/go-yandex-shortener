@@ -21,10 +21,10 @@ func main() {
 	config := config.NewConfig()
 	storage := storage.NewStorage(config)
 	shortener := shortener.NewShortener(storage)
-	handler := handler.NewHandler(shortener)
+	handler := handler.NewHandler(shortener, logger)
 
 	srv := new(server.Server)
-	if err := srv.Run(config.ServerAddress, handler.InitRoutes(logger.Sugar())); err != nil {
+	if err := srv.Run(config.ServerAddress, handler.InitRoutes()); err != nil {
 		log.Printf("error occured while running http server: %v", err)
 	}
 }

@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -17,15 +18,21 @@ type (
 func (w *bodyLogWriter) Write(b []byte) (int, error) {
 	size, err := w.ResponseWriter.Write(b)
 	w.size += size
-	return size, err
+	return size, fmt.Errorf("error calculating size: %w", err)
 }
 
 func InitLogger() (*zap.Logger, error) {
 	logger, err := zap.NewDevelopment()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error initializing logger: %w", err)
 	}
-	defer logger.Sync()
+
+	defer func() {
+		if logger.Sync() != nil {
+			logger.Sugar().Error("error sync logger: %w", err)
+		}
+	}()
+
 	return logger, nil
 }
 
