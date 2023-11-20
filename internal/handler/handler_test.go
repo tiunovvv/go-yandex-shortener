@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tiunovvv/go-yandex-shortener/internal/compressor"
 	"github.com/tiunovvv/go-yandex-shortener/internal/config"
 	"github.com/tiunovvv/go-yandex-shortener/internal/logger"
 	"github.com/tiunovvv/go-yandex-shortener/internal/shortener"
@@ -74,10 +75,11 @@ func TestPostHandler(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, tt.post.request, bytes.NewReader([]byte(tt.post.body)))
 			w := httptest.NewRecorder()
 
-			logger, _ := logger.InitLogger()
+			logger, _ := logger.NewLogger()
 			storage := storage.NewStorage(config)
 			shortener := shortener.NewShortener(storage)
-			handler := NewHandler(shortener, logger)
+			compressor := compressor.NewCompressor()
+			handler := NewHandler(shortener, logger, compressor)
 
 			router := handler.InitRoutes()
 			router.ServeHTTP(w, request)
@@ -151,9 +153,10 @@ func TestGetHandler(t *testing.T) {
 			storage := storage.NewStorage(config)
 
 			storage.Urls[tt.mapKey] = tt.mapValue
-			logger, _ := logger.InitLogger()
+			logger, _ := logger.NewLogger()
 			shortener := shortener.NewShortener(storage)
-			handler := NewHandler(shortener, logger)
+			compressor := compressor.NewCompressor()
+			handler := NewHandler(shortener, logger, compressor)
 
 			router := handler.InitRoutes()
 			router.ServeHTTP(w, request)
@@ -225,10 +228,11 @@ func TestPostApiHandler(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, tt.post.request, bytes.NewReader([]byte(tt.post.body)))
 
 			w := httptest.NewRecorder()
-			logger, _ := logger.InitLogger()
+			logger, _ := logger.NewLogger()
 			storage := storage.NewStorage(config)
 			shortener := shortener.NewShortener(storage)
-			handler := NewHandler(shortener, logger)
+			compressor := compressor.NewCompressor()
+			handler := NewHandler(shortener, logger, compressor)
 
 			router := handler.InitRoutes()
 			router.ServeHTTP(w, request)

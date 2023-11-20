@@ -8,29 +8,32 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/tiunovvv/go-yandex-shortener/internal/compressor"
 	"github.com/tiunovvv/go-yandex-shortener/internal/logger"
 	"github.com/tiunovvv/go-yandex-shortener/internal/models"
 	"github.com/tiunovvv/go-yandex-shortener/internal/shortener"
-	"go.uber.org/zap"
 )
 
 const isNotURL = "%s is not URL"
 
 type Handler struct {
-	shortener *shortener.Shortener
-	logger    *zap.Logger
+	shortener  *shortener.Shortener
+	logger     *logger.Logger
+	compressor *compressor.Compressor
 }
 
-func NewHandler(shortener *shortener.Shortener, logger *zap.Logger) *Handler {
+func NewHandler(shortener *shortener.Shortener, logger *logger.Logger, compressor *compressor.Compressor) *Handler {
 	return &Handler{
-		shortener: shortener,
-		logger:    logger,
+		shortener:  shortener,
+		logger:     logger,
+		compressor: compressor,
 	}
 }
 
 func (h *Handler) InitRoutes() *gin.Engine {
 	router := gin.New()
-	router.Use(logger.WithLogging(h.logger.Sugar()))
+	router.Use(h.compressor.GinGzipMiddleware())
+	router.Use(h.logger.GinLoggerMiddleware())
 	router.POST("/", h.PostHandler)
 	router.POST("/api/shorten", h.PostAPIHandler)
 	router.GET("/:id", h.GetHandler)
@@ -53,16 +56,17 @@ func (h *Handler) PostHandler(c *gin.Context) {
 
 	if _, err := url.ParseRequestURI(fullURL); err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
-		h.logger.Sugar().Error(isNotURL, fullURL)
+		h.logger.Sugar().Errorf(isNotURL, fullURL)
 		return
 	}
 
 	shortURL := h.shortener.GetShortURL(fullURL, c.Request.URL.RequestURI())
 	c.Status(http.StatusCreated)
 
-	if _, err := c.Writer.Write([]byte(shortURL)); err != nil {
+	if _, err := c.Writer.Write([]byte(shortURL)); c.Request.Body == nil && err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
-		h.logger.Sugar().Error("Cant write %s into body", shortURL)
+		h.logger.Sugar().Errorf("Cant write %s into body", shortURL)
+		return
 	}
 }
 
@@ -99,7 +103,7 @@ func (h *Handler) PostAPIHandler(c *gin.Context) {
 
 	if _, err := url.ParseRequestURI(fullURL); err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
-		h.logger.Sugar().Error(isNotURL, fullURL)
+		h.logger.Sugar().Errorf(isNotURL, fullURL)
 		return
 	}
 
