@@ -2,6 +2,7 @@ package compressor
 
 import (
 	"compress/gzip"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -22,7 +23,8 @@ type compressWriter struct {
 }
 
 func (c *compressWriter) Write(p []byte) (int, error) {
-	return c.Writer.Write(p)
+	w, err := c.Writer.Write(p)
+	return w, fmt.Errorf("compressor writing error: %w", err)
 }
 
 func (comp *Compressor) GinGzipMiddleware() gin.HandlerFunc {
@@ -44,7 +46,6 @@ func (comp *Compressor) GinGzipMiddleware() gin.HandlerFunc {
 			reader, err := gzip.NewReader(c.Request.Body)
 			if err != nil {
 				c.AbortWithError(http.StatusBadRequest, err)
-				return
 			}
 			defer reader.Close()
 			c.Request.Body = io.NopCloser(reader)

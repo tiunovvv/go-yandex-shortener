@@ -13,14 +13,21 @@ import (
 )
 
 func main() {
-	config := config.NewConfig()
-	storage := storage.NewStorage(config)
-	shortener := shortener.NewShortener(storage)
 	logger, err := logger.NewLogger()
 	if err != nil {
 		log.Printf("error occured while initializing logger: %v", err)
 		return
 	}
+
+	config := config.NewConfig(logger)
+
+	storage, err := storage.NewStorage(config)
+	if err != nil {
+		logger.Sugar().Errorf("error occured while initializing storage: %v", err)
+		return
+	}
+
+	shortener := shortener.NewShortener(storage)
 	compressor := compressor.NewCompressor()
 	handler := handler.NewHandler(shortener, logger, compressor)
 

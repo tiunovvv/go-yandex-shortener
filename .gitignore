@@ -25,3 +25,4 @@ vendor/
 golangci-lint
 Makefile
 .golangci.yml
+tmp/short-url-db.json

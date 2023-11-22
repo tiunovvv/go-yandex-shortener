@@ -66,8 +66,9 @@ func TestPostHandler(t *testing.T) {
 	}
 
 	config := &config.Config{
-		BaseURL:       "http://localhost:8080/",
-		ServerAddress: "localhost:8080",
+		BaseURL:         "http://localhost:8080/",
+		ServerAddress:   "localhost:8080",
+		FileStoragePath: "",
 	}
 
 	for _, tt := range tests {
@@ -76,7 +77,7 @@ func TestPostHandler(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			logger, _ := logger.NewLogger()
-			storage := storage.NewStorage(config)
+			storage, _ := storage.NewStorage(config)
 			shortener := shortener.NewShortener(storage)
 			compressor := compressor.NewCompressor()
 			handler := NewHandler(shortener, logger, compressor)
@@ -141,8 +142,9 @@ func TestGetHandler(t *testing.T) {
 	}
 
 	config := &config.Config{
-		BaseURL:       "http://localhost:8080/",
-		ServerAddress: "localhost:8080",
+		BaseURL:         "http://localhost:8080/",
+		ServerAddress:   "localhost:8080",
+		FileStoragePath: "",
 	}
 
 	for _, tt := range tests {
@@ -150,7 +152,7 @@ func TestGetHandler(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, tt.request, nil)
 
 			w := httptest.NewRecorder()
-			storage := storage.NewStorage(config)
+			storage, _ := storage.NewStorage(config)
 
 			storage.Urls[tt.mapKey] = tt.mapValue
 			logger, _ := logger.NewLogger()
@@ -219,8 +221,9 @@ func TestPostApiHandler(t *testing.T) {
 	}
 
 	config := &config.Config{
-		BaseURL:       "http://localhost:8080/",
-		ServerAddress: "localhost:8080",
+		BaseURL:         "http://localhost:8080/",
+		ServerAddress:   "localhost:8080",
+		FileStoragePath: "",
 	}
 
 	for _, tt := range tests {
@@ -229,7 +232,7 @@ func TestPostApiHandler(t *testing.T) {
 
 			w := httptest.NewRecorder()
 			logger, _ := logger.NewLogger()
-			storage := storage.NewStorage(config)
+			storage, _ := storage.NewStorage(config)
 			shortener := shortener.NewShortener(storage)
 			compressor := compressor.NewCompressor()
 			handler := NewHandler(shortener, logger, compressor)
