@@ -20,7 +20,7 @@ type Config struct {
 func NewConfig(logger *logger.Logger) *Config {
 	flagServerAddress := flag.String("a", "", "server start URL")
 	flagBaseURL := flag.String("b", "", "base of short URL")
-	fileStoragePath := flag.String("f", "tmp/short-url-db.json", "file storage path")
+	fileStoragePath := flag.String("f", "", "file storage path")
 	flag.Parse()
 
 	config := Config{
@@ -33,7 +33,7 @@ func NewConfig(logger *logger.Logger) *Config {
 	logger.Sugar().Infof("server start URL is %s", config.ServerAddress)
 	logger.Sugar().Infof("base of short URL is %s", config.BaseURL)
 	if config.FileStoragePath == "" {
-		logger.Sugar().Info("file storage path is empty disk recording is disabled")
+		logger.Sugar().Info("file storage path is empty, disk recording is disabled")
 	}
 	if config.FileStoragePath != "" {
 		logger.Sugar().Infof("file storage path is %s", config.FileStoragePath)
@@ -71,7 +71,11 @@ func getFileStoragePath(fileStoragePath *string) string {
 		return envfileStoragePath
 	}
 
-	return *fileStoragePath
+	if fileStoragePath != nil && *fileStoragePath != "" {
+		return *fileStoragePath
+	}
+
+	return ""
 }
 
 func checkBaseURL(str string) bool {
