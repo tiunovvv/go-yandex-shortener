@@ -21,6 +21,8 @@ func NewConsumer(filename string) (*Consumer, error) {
 		return nil, fmt.Errorf("error opening file %w", err)
 	}
 
+	defer file.Close()
+
 	return &Consumer{
 		file:    file,
 		scanner: bufio.NewScanner(file),
@@ -35,15 +37,6 @@ func (c *Consumer) ReadURLs(urls map[string]string) error {
 			return fmt.Errorf("error unmarshalling string from temp file %w", err)
 		}
 		urls[urlsJSON.ShortURL] = urlsJSON.OriginalURL
-	}
-
-	return nil
-}
-
-func (c *Consumer) Close() error {
-	err := c.file.Close()
-	if err != nil {
-		return fmt.Errorf("error closing file %w", err)
 	}
 
 	return nil

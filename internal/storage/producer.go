@@ -14,9 +14,8 @@ type Producer struct {
 
 func NewProducer(filename string) (*Producer, error) {
 	if _, err := os.Stat(filename); os.IsNotExist(err) {
-		file, _ := os.Create(filename)
-		if err := file.Close(); err != nil {
-			return nil, fmt.Errorf("error closing temp file %w", err)
+		if _, err := os.Create(filename); err != nil {
+			return nil, fmt.Errorf("error creating temp file %w", err)
 		}
 	}
 	const (
