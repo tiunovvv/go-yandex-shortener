@@ -12,26 +12,28 @@ import (
 )
 
 type Shortener struct {
-	storage *storage.Storage
+	storage *storage.MemoryStorage
 }
 
-func NewShortener(storage *storage.Storage) *Shortener {
+func NewShortener(storage *storage.MemoryStorage) *Shortener {
 	return &Shortener{
 		storage: storage,
 	}
 }
 
-func (sh *Shortener) GetShortURL(fullURL string, path string) string {
+func (sh *Shortener) GetShortURL(fullURL string) (string, bool) {
+	var isNew bool
 	if shortURL := sh.storage.FindByFullURL(fullURL); shortURL != "" {
-		return sh.storage.Config.BaseURL + path + shortURL
+		return shortURL, isNew
 	}
 
 	shortURL := sh.GenerateShortURL()
 	for errors.Is(sh.storage.SaveURL(fullURL, shortURL), myErrors.ErrKeyAlreadyExists) {
 		shortURL = sh.GenerateShortURL()
 	}
+	isNew = true
 
-	return sh.storage.Config.BaseURL + path + shortURL
+	return shortURL, isNew
 }
 
 func (sh *Shortener) GetFullURL(shortURL string) (string, error) {

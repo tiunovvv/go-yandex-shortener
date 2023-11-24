@@ -7,20 +7,20 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/tiunovvv/go-yandex-shortener/internal/logger"
+	"go.uber.org/zap"
 )
 
 type Config struct {
-	logger          *logger.Logger
+	logger          *zap.Logger
 	ServerAddress   string
 	BaseURL         string
 	FileStoragePath string
 }
 
-func NewConfig(logger *logger.Logger) *Config {
+func NewConfig(logger *zap.Logger) *Config {
 	flagServerAddress := flag.String("a", "", "server start URL")
 	flagBaseURL := flag.String("b", "", "base of short URL")
-	fileStoragePath := flag.String("f", "", "file storage path")
+	fileStoragePath := flag.String("f", "tmp/short-url-db.json", "file storage path")
 	flag.Parse()
 
 	config := Config{

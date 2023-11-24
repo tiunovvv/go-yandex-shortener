@@ -1,4 +1,4 @@
-package compressor
+package middleware
 
 import (
 	"compress/gzip"
@@ -8,14 +8,8 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
-
-type Compressor struct {
-}
-
-func NewCompressor() *Compressor {
-	return &Compressor{}
-}
 
 type compressWriter struct {
 	io.Writer
@@ -27,7 +21,7 @@ func (c *compressWriter) Write(p []byte) (int, error) {
 	return w, fmt.Errorf("compressor writing error: %w", err)
 }
 
-func (comp *Compressor) GinGzipMiddleware() gin.HandlerFunc {
+func GinGzip(log *zap.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		const (
 			gZip            = "gzip"
@@ -37,18 +31,27 @@ func (comp *Compressor) GinGzipMiddleware() gin.HandlerFunc {
 		if strings.Contains(c.GetHeader("Accept-Encoding"), gZip) {
 			writer := c.Writer
 			newWriter := gzip.NewWriter(writer)
-			defer newWriter.Close()
 			c.Writer = &compressWriter{Writer: newWriter, ResponseWriter: writer}
+			defer func() {
+				if err := newWriter.Close(); err != nil {
+					log.Sugar().Errorf("Close writer error: %w", err)
+					c.AbortWithStatus(http.StatusBadRequest)
+				}
+			}()
 			writer.Header().Set(contentEncoding, gZip)
 		}
 
 		if strings.Contains(c.GetHeader(contentEncoding), gZip) {
 			reader, err := gzip.NewReader(c.Request.Body)
 			if err != nil {
-				c.AbortWithError(http.StatusBadRequest, err)
+				log.Sugar().Errorf("Can`t read body: %w", err)
+				c.AbortWithStatus(http.StatusBadRequest)
 			}
-			defer reader.Close()
 			c.Request.Body = io.NopCloser(reader)
+			if err := reader.Close(); err != nil {
+				log.Sugar().Errorf("Close reader error: %w", err)
+				c.AbortWithStatus(http.StatusBadRequest)
+			}
 		}
 		c.Next()
 	}

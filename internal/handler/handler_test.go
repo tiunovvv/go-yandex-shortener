@@ -3,13 +3,13 @@ package handler
 import (
 	"bytes"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tiunovvv/go-yandex-shortener/internal/compressor"
 	"github.com/tiunovvv/go-yandex-shortener/internal/config"
 	"github.com/tiunovvv/go-yandex-shortener/internal/logger"
 	"github.com/tiunovvv/go-yandex-shortener/internal/shortener"
@@ -76,11 +76,15 @@ func TestPostHandler(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, tt.post.request, bytes.NewReader([]byte(tt.post.body)))
 			w := httptest.NewRecorder()
 
-			logger, _ := logger.NewLogger()
-			storage, _ := storage.NewStorage(config)
-			shortener := shortener.NewShortener(storage)
-			compressor := compressor.NewCompressor()
-			handler := NewHandler(shortener, logger, compressor)
+			logger, err := logger.NewLogger()
+			if err != nil {
+				log.Fatalf("error occured while initializing logger: %v", err)
+				return
+			}
+			memoryStorage := storage.NewMemoryStorage()
+			fileStorage := storage.NewFileStorage(config.FileStoragePath, memoryStorage)
+			shortener := shortener.NewShortener(memoryStorage)
+			handler := NewHandler(config, shortener, logger, fileStorage)
 
 			router := handler.InitRoutes()
 			router.ServeHTTP(w, request)
@@ -152,19 +156,22 @@ func TestGetHandler(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, tt.request, nil)
 
 			w := httptest.NewRecorder()
-			storage, _ := storage.NewStorage(config)
+			memoryStorage := storage.NewMemoryStorage()
+			memoryStorage.Urls[tt.mapKey] = tt.mapValue
+			fileStorage := storage.NewFileStorage(config.FileStoragePath, memoryStorage)
 
-			storage.Urls[tt.mapKey] = tt.mapValue
-			logger, _ := logger.NewLogger()
-			shortener := shortener.NewShortener(storage)
-			compressor := compressor.NewCompressor()
-			handler := NewHandler(shortener, logger, compressor)
+			logger, err := logger.NewLogger()
+			if err != nil {
+				log.Fatalf("error occured while initializing logger: %v", err)
+				return
+			}
+			shortener := shortener.NewShortener(memoryStorage)
+			handler := NewHandler(config, shortener, logger, fileStorage)
 
 			router := handler.InitRoutes()
 			router.ServeHTTP(w, request)
 			result := w.Result()
 
-			_, err := io.ReadAll(result.Body)
 			require.NoError(t, err)
 			err = result.Body.Close()
 			require.NoError(t, err)
@@ -231,18 +238,23 @@ func TestPostApiHandler(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, tt.post.request, bytes.NewReader([]byte(tt.post.body)))
 
 			w := httptest.NewRecorder()
-			logger, _ := logger.NewLogger()
-			storage, _ := storage.NewStorage(config)
-			shortener := shortener.NewShortener(storage)
-			compressor := compressor.NewCompressor()
-			handler := NewHandler(shortener, logger, compressor)
+			logger, err := logger.NewLogger()
+			if err != nil {
+				log.Fatalf("error occured while initializing logger: %v", err)
+				return
+			}
+			memoryStorage := storage.NewMemoryStorage()
+			fileStorage := storage.NewFileStorage(config.FileStoragePath, memoryStorage)
+			shortener := shortener.NewShortener(memoryStorage)
+			handler := NewHandler(config, shortener, logger, fileStorage)
 
 			router := handler.InitRoutes()
 			router.ServeHTTP(w, request)
 			result := w.Result()
 
 			assert.Equal(t, tt.want.statusCode, result.StatusCode)
-			_ = result.Body.Close()
+			err = result.Body.Close()
+			require.NoError(t, err)
 		})
 	}
 }

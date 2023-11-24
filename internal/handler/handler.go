@@ -8,32 +8,39 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/tiunovvv/go-yandex-shortener/internal/compressor"
-	"github.com/tiunovvv/go-yandex-shortener/internal/logger"
+	"github.com/tiunovvv/go-yandex-shortener/internal/config"
+	"github.com/tiunovvv/go-yandex-shortener/internal/middleware"
 	"github.com/tiunovvv/go-yandex-shortener/internal/models"
 	"github.com/tiunovvv/go-yandex-shortener/internal/shortener"
+	"github.com/tiunovvv/go-yandex-shortener/internal/storage"
+	"go.uber.org/zap"
 )
 
 const isNotURL = "%s is not URL"
 
 type Handler struct {
-	shortener  *shortener.Shortener
-	logger     *logger.Logger
-	compressor *compressor.Compressor
+	config      *config.Config
+	shortener   *shortener.Shortener
+	logger      *zap.Logger
+	filestorage *storage.FileStorage
 }
 
-func NewHandler(shortener *shortener.Shortener, logger *logger.Logger, compressor *compressor.Compressor) *Handler {
+func NewHandler(config *config.Config,
+	shortener *shortener.Shortener,
+	logger *zap.Logger,
+	filestorage *storage.FileStorage) *Handler {
 	return &Handler{
-		shortener:  shortener,
-		logger:     logger,
-		compressor: compressor,
+		config:      config,
+		shortener:   shortener,
+		logger:      logger,
+		filestorage: filestorage,
 	}
 }
 
 func (h *Handler) InitRoutes() *gin.Engine {
 	router := gin.New()
-	router.Use(h.compressor.GinGzipMiddleware())
-	router.Use(h.logger.GinLoggerMiddleware())
+	router.Use(middleware.GinGzip(h.logger))
+	router.Use(middleware.GinLogger(h.logger))
 	router.POST("/", h.PostHandler)
 	router.POST("/api/shorten", h.PostAPIHandler)
 	router.GET("/:id", h.GetHandler)
@@ -60,12 +67,22 @@ func (h *Handler) PostHandler(c *gin.Context) {
 		return
 	}
 
-	shortURL := h.shortener.GetShortURL(fullURL, c.Request.URL.RequestURI())
+	shortURL, isNew := h.shortener.GetShortURL(fullURL)
+
+	if isNew {
+		if err := h.filestorage.SaveURL(shortURL, fullURL); err != nil {
+			c.AbortWithStatus(http.StatusInternalServerError)
+			h.logger.Sugar().Errorf("Cant save %s and %s into temp file", shortURL, fullURL)
+			return
+		}
+	}
+
+	fullShortURL := h.config.BaseURL + c.Request.URL.RequestURI() + shortURL
 	c.Status(http.StatusCreated)
 
-	if _, err := c.Writer.Write([]byte(shortURL)); c.Request.Body == nil && err != nil {
+	if _, err := c.Writer.Write([]byte(fullShortURL)); c.Request.Body == nil && err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
-		h.logger.Sugar().Errorf("Cant write %s into body", shortURL)
+		h.logger.Sugar().Errorf("Cant write %s into body", fullShortURL)
 		return
 	}
 }
@@ -107,7 +124,8 @@ func (h *Handler) PostAPIHandler(c *gin.Context) {
 		return
 	}
 
-	shortURL := h.shortener.GetShortURL(fullURL, "/")
-	resp := models.ResponseAPIShorten{Result: shortURL}
+	shortURL, _ := h.shortener.GetShortURL(fullURL)
+	fullShortURL := h.config.BaseURL + "/" + shortURL
+	resp := models.ResponseAPIShorten{Result: fullShortURL}
 	c.AbortWithStatusJSON(http.StatusCreated, resp)
 }
