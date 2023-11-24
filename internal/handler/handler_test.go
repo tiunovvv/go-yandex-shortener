@@ -82,7 +82,7 @@ func TestPostHandler(t *testing.T) {
 				return
 			}
 			memoryStorage := storage.NewMemoryStorage()
-			fileStorage := storage.NewFileStorage(config.FileStoragePath, memoryStorage)
+			fileStorage := storage.NewFileStorage(config.FileStoragePath, memoryStorage, logger)
 			shortener := shortener.NewShortener(memoryStorage)
 			handler := NewHandler(config, shortener, logger, fileStorage)
 
@@ -153,18 +153,18 @@ func TestGetHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			request := httptest.NewRequest(http.MethodGet, tt.request, nil)
-
-			w := httptest.NewRecorder()
-			memoryStorage := storage.NewMemoryStorage()
-			memoryStorage.Urls[tt.mapKey] = tt.mapValue
-			fileStorage := storage.NewFileStorage(config.FileStoragePath, memoryStorage)
-
 			logger, err := logger.NewLogger()
 			if err != nil {
 				log.Fatalf("error occured while initializing logger: %v", err)
 				return
 			}
+
+			request := httptest.NewRequest(http.MethodGet, tt.request, nil)
+			w := httptest.NewRecorder()
+
+			memoryStorage := storage.NewMemoryStorage()
+			memoryStorage.Urls[tt.mapKey] = tt.mapValue
+			fileStorage := storage.NewFileStorage(config.FileStoragePath, memoryStorage, logger)
 			shortener := shortener.NewShortener(memoryStorage)
 			handler := NewHandler(config, shortener, logger, fileStorage)
 
@@ -244,7 +244,7 @@ func TestPostApiHandler(t *testing.T) {
 				return
 			}
 			memoryStorage := storage.NewMemoryStorage()
-			fileStorage := storage.NewFileStorage(config.FileStoragePath, memoryStorage)
+			fileStorage := storage.NewFileStorage(config.FileStoragePath, memoryStorage, logger)
 			shortener := shortener.NewShortener(memoryStorage)
 			handler := NewHandler(config, shortener, logger, fileStorage)
 

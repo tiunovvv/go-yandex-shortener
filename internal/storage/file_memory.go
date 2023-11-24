@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+
+	"go.uber.org/zap"
 )
 
 const (
 	perm       = 0666
-	errorOpen  = "error opening temp file %w"
+	errorOpen  = "can`t open file: %s, %w"
 	errorClose = "error closing temp file %w"
 )
 
@@ -22,13 +24,15 @@ type URLsJSON struct {
 
 type FileStorage struct {
 	memoryStorage *MemoryStorage
+	logger        *zap.Logger
 	filename      string
 }
 
-func NewFileStorage(filename string, memoryStorage *MemoryStorage) *FileStorage {
+func NewFileStorage(filename string, memoryStorage *MemoryStorage, logger *zap.Logger) *FileStorage {
 	return &FileStorage{
-		filename:      filename,
 		memoryStorage: memoryStorage,
+		logger:        logger,
+		filename:      filename,
 	}
 }
 
@@ -39,7 +43,8 @@ func (f *FileStorage) LoadURLs() error {
 
 	file, err := os.OpenFile(f.filename, os.O_CREATE|os.O_RDONLY, perm)
 	if err != nil {
-		return fmt.Errorf(errorOpen, err)
+		f.logger.Sugar().Errorf(errorOpen, f.filename, err)
+		return nil
 	}
 
 	scanner := bufio.NewScanner(file)
@@ -74,7 +79,8 @@ func (f *FileStorage) SaveURL(shortURL string, fullURL string) error {
 
 	file, err := os.OpenFile(f.filename, os.O_WRONLY|os.O_APPEND, perm)
 	if err != nil {
-		return fmt.Errorf(errorOpen, err)
+		f.logger.Sugar().Errorf(errorOpen, f.filename, err)
+		return nil
 	}
 
 	writer := bufio.NewWriter(file)

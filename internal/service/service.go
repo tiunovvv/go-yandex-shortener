@@ -14,7 +14,7 @@ func Start(log *zap.Logger) {
 
 	memoryStorage := storage.NewMemoryStorage()
 
-	fileStorage := storage.NewFileStorage(config.FileStoragePath, memoryStorage)
+	fileStorage := storage.NewFileStorage(config.FileStoragePath, memoryStorage, log)
 
 	if err := fileStorage.LoadURLs(); err != nil {
 		log.Sugar().Errorf("error loading URLs from temp file: %v", err)
