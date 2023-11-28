@@ -12,28 +12,20 @@ import (
 	"github.com/tiunovvv/go-yandex-shortener/internal/middleware"
 	"github.com/tiunovvv/go-yandex-shortener/internal/models"
 	"github.com/tiunovvv/go-yandex-shortener/internal/shortener"
-	"github.com/tiunovvv/go-yandex-shortener/internal/storage"
 	"go.uber.org/zap"
 )
 
-const isNotURL = "%s is not URL"
-
 type Handler struct {
-	config      *config.Config
-	shortener   *shortener.Shortener
-	logger      *zap.Logger
-	filestorage *storage.FileStorage
+	config    *config.Config
+	shortener *shortener.Shortener
+	logger    *zap.Logger
 }
 
-func NewHandler(config *config.Config,
-	shortener *shortener.Shortener,
-	logger *zap.Logger,
-	filestorage *storage.FileStorage) *Handler {
+func NewHandler(config *config.Config, shortener *shortener.Shortener, logger *zap.Logger) *Handler {
 	return &Handler{
-		config:      config,
-		shortener:   shortener,
-		logger:      logger,
-		filestorage: filestorage,
+		config:    config,
+		shortener: shortener,
+		logger:    logger,
 	}
 }
 
@@ -63,19 +55,11 @@ func (h *Handler) PostHandler(c *gin.Context) {
 
 	if _, err := url.ParseRequestURI(fullURL); err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
-		h.logger.Sugar().Errorf(isNotURL, fullURL)
+		h.logger.Sugar().Errorf("%s is not URL", fullURL)
 		return
 	}
 
-	shortURL, isNew := h.shortener.GetShortURL(fullURL)
-
-	if isNew {
-		if err := h.filestorage.SaveURL(shortURL, fullURL); err != nil {
-			c.AbortWithStatus(http.StatusInternalServerError)
-			h.logger.Sugar().Errorf("Cant save %s and %s into temp file", shortURL, fullURL)
-			return
-		}
-	}
+	shortURL := h.shortener.GetShortURL(fullURL)
 
 	fullShortURL := h.config.BaseURL + c.Request.URL.RequestURI() + shortURL
 	c.Status(http.StatusCreated)
@@ -120,11 +104,11 @@ func (h *Handler) PostAPIHandler(c *gin.Context) {
 
 	if _, err := url.ParseRequestURI(fullURL); err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
-		h.logger.Sugar().Errorf(isNotURL, fullURL)
+		h.logger.Sugar().Errorf("%s is not URL", fullURL)
 		return
 	}
 
-	shortURL, _ := h.shortener.GetShortURL(fullURL)
+	shortURL := h.shortener.GetShortURL(fullURL)
 	fullShortURL := h.config.BaseURL + "/" + shortURL
 	resp := models.ResponseAPIShorten{Result: fullShortURL}
 	c.AbortWithStatusJSON(http.StatusCreated, resp)

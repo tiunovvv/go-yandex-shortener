@@ -18,8 +18,8 @@ type Config struct {
 }
 
 func NewConfig(logger *zap.Logger) *Config {
-	flagServerAddress := flag.String("a", "", "server start URL")
-	flagBaseURL := flag.String("b", "", "base of short URL")
+	flagServerAddress := flag.String("a", "localhost:8080", "server start URL")
+	flagBaseURL := flag.String("b", "http://localhost:8080", "base of short URL")
 	fileStoragePath := flag.String("f", "tmp/short-url-db.json", "file storage path")
 	flag.Parse()
 
@@ -47,11 +47,7 @@ func getServerAddress(flagServerAddress *string) string {
 		return envServerAddress
 	}
 
-	if flagServerAddress != nil && *flagServerAddress != "" {
-		return *flagServerAddress
-	}
-
-	return "localhost:8080"
+	return *flagServerAddress
 }
 
 func getBaseURL(flagBaseURL *string) string {
@@ -59,11 +55,7 @@ func getBaseURL(flagBaseURL *string) string {
 		return envBaseURL
 	}
 
-	if flagBaseURL != nil && checkBaseURL(*flagBaseURL) {
-		return *flagBaseURL
-	}
-
-	return "http://localhost:8080"
+	return *flagBaseURL
 }
 
 func getFileStoragePath(fileStoragePath *string) string {
@@ -71,11 +63,7 @@ func getFileStoragePath(fileStoragePath *string) string {
 		return envfileStoragePath
 	}
 
-	if fileStoragePath != nil && *fileStoragePath != "" {
-		return *fileStoragePath
-	}
-
-	return ""
+	return *fileStoragePath
 }
 
 func checkBaseURL(str string) bool {

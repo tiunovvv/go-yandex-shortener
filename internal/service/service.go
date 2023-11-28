@@ -11,19 +11,9 @@ import (
 
 func Start(log *zap.Logger) {
 	config := config.NewConfig(log)
-
-	memoryStorage := storage.NewMemoryStorage()
-
-	fileStorage := storage.NewFileStorage(config.FileStoragePath, memoryStorage, log)
-
-	if err := fileStorage.LoadURLs(); err != nil {
-		log.Sugar().Errorf("error loading URLs from temp file: %v", err)
-		return
-	}
-
-	shortener := shortener.NewShortener(memoryStorage)
-
-	handler := handler.NewHandler(config, shortener, log, fileStorage)
+	fileStorage := storage.NewFileStore(config, log)
+	shortener := shortener.NewShortener(fileStorage)
+	handler := handler.NewHandler(config, shortener, log)
 
 	srv := new(server.Server)
 	if err := srv.Run(config.ServerAddress, handler.InitRoutes()); err != nil {

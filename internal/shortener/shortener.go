@@ -12,32 +12,32 @@ import (
 )
 
 type Shortener struct {
-	storage *storage.MemoryStorage
+	Storage *storage.FileStore
 }
 
-func NewShortener(storage *storage.MemoryStorage) *Shortener {
+func NewShortener(storage *storage.FileStore) *Shortener {
 	return &Shortener{
-		storage: storage,
+		Storage: storage,
 	}
 }
 
-func (sh *Shortener) GetShortURL(fullURL string) (string, bool) {
-	var isNew bool
-	if shortURL := sh.storage.FindByFullURL(fullURL); shortURL != "" {
-		return shortURL, isNew
+func (sh *Shortener) GetShortURL(fullURL string) string {
+	if shortURL := sh.Storage.MemoryStore.FindByFullURL(fullURL); shortURL != "" {
+		return shortURL
 	}
 
 	shortURL := sh.GenerateShortURL()
-	for errors.Is(sh.storage.SaveURL(fullURL, shortURL), myErrors.ErrKeyAlreadyExists) {
+	for errors.Is(sh.Storage.MemoryStore.SaveURL(fullURL, shortURL), myErrors.ErrKeyAlreadyExists) {
 		shortURL = sh.GenerateShortURL()
 	}
-	isNew = true
 
-	return shortURL, isNew
+	sh.Storage.SaveURLInFile(fullURL, shortURL)
+
+	return shortURL
 }
 
 func (sh *Shortener) GetFullURL(shortURL string) (string, error) {
-	if fullURL := sh.storage.GetFullURL(shortURL); fullURL != "" {
+	if fullURL := sh.Storage.MemoryStore.GetFullURL(shortURL); fullURL != "" {
 		return fullURL, nil
 	}
 

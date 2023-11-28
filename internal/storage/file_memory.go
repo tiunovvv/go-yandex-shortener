@@ -7,13 +7,8 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/tiunovvv/go-yandex-shortener/internal/config"
 	"go.uber.org/zap"
-)
-
-const (
-	perm       = 0666
-	errorOpen  = "can`t open file: %s, %w"
-	errorClose = "error closing temp file %w"
 )
 
 type URLsJSON struct {
@@ -22,32 +17,29 @@ type URLsJSON struct {
 	OriginalURL string `json:"original_url"`
 }
 
-type FileStorage struct {
-	memoryStorage *MemoryStorage
-	logger        *zap.Logger
-	filename      string
+type FileStore struct {
+	Config      *config.Config
+	MemoryStore *MemoryStore
+	logger      *zap.Logger
+	file        *os.File
 }
 
-func NewFileStorage(filename string, memoryStorage *MemoryStorage, logger *zap.Logger) *FileStorage {
-	return &FileStorage{
-		memoryStorage: memoryStorage,
-		logger:        logger,
-		filename:      filename,
-	}
-}
-
-func (f *FileStorage) LoadURLs() error {
-	if f.filename == "" {
-		return nil
-	}
-
-	file, err := os.OpenFile(f.filename, os.O_CREATE|os.O_RDONLY, perm)
+func NewFileStore(config *config.Config, logger *zap.Logger) *FileStore {
+	memoryStore := &MemoryStore{Urls: make(map[string]string)}
+	const perm = 0666
+	file, err := os.OpenFile(config.FileStoragePath, os.O_CREATE|os.O_RDONLY, perm)
 	if err != nil {
-		f.logger.Sugar().Errorf(errorOpen, f.filename, err)
-		return nil
+		logger.Sugar().Errorf("can`t open file: %s, %w", config.FileStoragePath, err)
 	}
+	f := &FileStore{MemoryStore: memoryStore, logger: logger, file: file}
+	if err := f.LoadURLs(config.FileStoragePath); err != nil {
+		logger.Sugar().Errorf("error getting data from temp file", err)
+	}
+	return f
+}
 
-	scanner := bufio.NewScanner(file)
+func (f *FileStore) LoadURLs(filename string) error {
+	scanner := bufio.NewScanner(f.file)
 
 	urls := make(map[string]string)
 	for scanner.Scan() {
@@ -59,12 +51,12 @@ func (f *FileStorage) LoadURLs() error {
 		urls[urlsJSON.ShortURL] = urlsJSON.OriginalURL
 	}
 
-	if err := file.Close(); err != nil {
-		return fmt.Errorf(errorClose, err)
-	}
+	// if err := f.file.Close(); err != nil {
+	// 	return fmt.Errorf("error closing temp file %w", err)
+	// }
 
 	for k, v := range urls {
-		if err := f.memoryStorage.SaveURL(v, k); err != nil {
+		if err := f.MemoryStore.SaveURL(v, k); err != nil {
 			return fmt.Errorf("error saving in local memory %w", err)
 		}
 	}
@@ -72,21 +64,11 @@ func (f *FileStorage) LoadURLs() error {
 	return nil
 }
 
-func (f *FileStorage) SaveURL(shortURL string, fullURL string) error {
-	if f.filename == "" {
-		return nil
-	}
-
-	file, err := os.OpenFile(f.filename, os.O_WRONLY|os.O_APPEND, perm)
-	if err != nil {
-		f.logger.Sugar().Errorf(errorOpen, f.filename, err)
-		return nil
-	}
-
-	writer := bufio.NewWriter(file)
+func (f *FileStore) SaveURLInFile(shortURL string, fullURL string) error {
+	writer := bufio.NewWriter(f.file)
 
 	u := URLsJSON{
-		UUID:        strconv.Itoa(len(f.memoryStorage.Urls)),
+		UUID:        strconv.Itoa(len(f.MemoryStore.Urls)),
 		ShortURL:    shortURL,
 		OriginalURL: fullURL}
 
@@ -105,10 +87,6 @@ func (f *FileStorage) SaveURL(shortURL string, fullURL string) error {
 
 	if err := writer.Flush(); err != nil {
 		return fmt.Errorf("error flushing temp file %w", err)
-	}
-
-	if err := file.Close(); err != nil {
-		return fmt.Errorf(errorClose, err)
 	}
 
 	return nil

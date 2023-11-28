@@ -11,7 +11,6 @@ func main() {
 	logger, err := logger.NewLogger()
 	if err != nil {
 		log.Fatalf("error occured while initializing logger: %v", err)
-		return
 	}
 
 	service.Start(logger)

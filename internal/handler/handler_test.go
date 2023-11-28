@@ -81,10 +81,10 @@ func TestPostHandler(t *testing.T) {
 				log.Fatalf("error occured while initializing logger: %v", err)
 				return
 			}
-			memoryStorage := storage.NewMemoryStorage()
-			fileStorage := storage.NewFileStorage(config.FileStoragePath, memoryStorage, logger)
-			shortener := shortener.NewShortener(memoryStorage)
-			handler := NewHandler(config, shortener, logger, fileStorage)
+
+			storage := storage.NewFileStore(config, logger)
+			shortener := shortener.NewShortener(storage)
+			handler := NewHandler(config, shortener, logger)
 
 			router := handler.InitRoutes()
 			router.ServeHTTP(w, request)
@@ -162,11 +162,10 @@ func TestGetHandler(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, tt.request, nil)
 			w := httptest.NewRecorder()
 
-			memoryStorage := storage.NewMemoryStorage()
-			memoryStorage.Urls[tt.mapKey] = tt.mapValue
-			fileStorage := storage.NewFileStorage(config.FileStoragePath, memoryStorage, logger)
-			shortener := shortener.NewShortener(memoryStorage)
-			handler := NewHandler(config, shortener, logger, fileStorage)
+			storage := storage.NewFileStore(config, logger)
+			storage.MemoryStore.Urls[tt.mapKey] = tt.mapValue
+			shortener := shortener.NewShortener(storage)
+			handler := NewHandler(config, shortener, logger)
 
 			router := handler.InitRoutes()
 			router.ServeHTTP(w, request)
@@ -243,10 +242,10 @@ func TestPostApiHandler(t *testing.T) {
 				log.Fatalf("error occured while initializing logger: %v", err)
 				return
 			}
-			memoryStorage := storage.NewMemoryStorage()
-			fileStorage := storage.NewFileStorage(config.FileStoragePath, memoryStorage, logger)
-			shortener := shortener.NewShortener(memoryStorage)
-			handler := NewHandler(config, shortener, logger, fileStorage)
+
+			storage := storage.NewFileStore(config, logger)
+			shortener := shortener.NewShortener(storage)
+			handler := NewHandler(config, shortener, logger)
 
 			router := handler.InitRoutes()
 			router.ServeHTTP(w, request)
