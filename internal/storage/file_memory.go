@@ -27,7 +27,7 @@ type FileStore struct {
 func NewFileStore(config *config.Config, logger *zap.Logger) *FileStore {
 	memoryStore := &MemoryStore{Urls: make(map[string]string)}
 	const perm = 0666
-	file, err := os.OpenFile(config.FileStoragePath, os.O_CREATE|os.O_RDONLY, perm)
+	file, err := os.OpenFile(config.FileStoragePath, os.O_CREATE|os.O_RDWR|os.O_APPEND, perm)
 	if err != nil {
 		logger.Sugar().Errorf("can`t open file: %s, %w", config.FileStoragePath, err)
 	}
@@ -50,13 +50,8 @@ func (f *FileStore) LoadURLs(filename string) error {
 		}
 		urls[urlsJSON.ShortURL] = urlsJSON.OriginalURL
 	}
-
-	// if err := f.file.Close(); err != nil {
-	// 	return fmt.Errorf("error closing temp file %w", err)
-	// }
-
 	for k, v := range urls {
-		if err := f.MemoryStore.SaveURL(v, k); err != nil {
+		if err := f.MemoryStore.SaveURL(k, v); err != nil {
 			return fmt.Errorf("error saving in local memory %w", err)
 		}
 	}
@@ -64,7 +59,7 @@ func (f *FileStore) LoadURLs(filename string) error {
 	return nil
 }
 
-func (f *FileStore) SaveURLInFile(shortURL string, fullURL string) error {
+func (f *FileStore) SaveURLInFile(shortURL string, fullURL string) {
 	writer := bufio.NewWriter(f.file)
 
 	u := URLsJSON{
@@ -74,20 +69,22 @@ func (f *FileStore) SaveURLInFile(shortURL string, fullURL string) error {
 
 	data, err := json.Marshal(u)
 	if err != nil {
-		return fmt.Errorf("error masrshaling data %w", err)
+		f.logger.Sugar().Errorf("error masrshaling data %w", err)
+		return
 	}
 
 	if _, err := writer.Write(data); err != nil {
-		return fmt.Errorf("error writing data into temp file %w", err)
+		f.logger.Sugar().Errorf("error writing data into temp file %w", err)
+		return
 	}
 
 	if err := writer.WriteByte('\n'); err != nil {
-		return fmt.Errorf("error writing newline into temp file %w", err)
+		f.logger.Sugar().Errorf("error writing newline into temp file %w", err)
+		return
 	}
 
 	if err := writer.Flush(); err != nil {
-		return fmt.Errorf("error flushing temp file %w", err)
+		f.logger.Sugar().Errorf("error flushing temp file %w", err)
+		return
 	}
-
-	return nil
 }

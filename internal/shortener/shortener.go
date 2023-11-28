@@ -2,7 +2,6 @@ package shortener
 
 import (
 	"errors"
-	"fmt"
 	"math/rand"
 	"time"
 
@@ -22,10 +21,9 @@ func NewShortener(storage *storage.FileStore) *Shortener {
 }
 
 func (sh *Shortener) GetShortURL(fullURL string) string {
-	if shortURL := sh.Storage.MemoryStore.FindByFullURL(fullURL); shortURL != "" {
+	if shortURL := sh.Storage.MemoryStore.GetShortURL(fullURL); shortURL != "" {
 		return shortURL
 	}
-
 	shortURL := sh.GenerateShortURL()
 	for errors.Is(sh.Storage.MemoryStore.SaveURL(fullURL, shortURL), myErrors.ErrKeyAlreadyExists) {
 		shortURL = sh.GenerateShortURL()
@@ -34,14 +32,6 @@ func (sh *Shortener) GetShortURL(fullURL string) string {
 	sh.Storage.SaveURLInFile(fullURL, shortURL)
 
 	return shortURL
-}
-
-func (sh *Shortener) GetFullURL(shortURL string) (string, error) {
-	if fullURL := sh.Storage.MemoryStore.GetFullURL(shortURL); fullURL != "" {
-		return fullURL, nil
-	}
-
-	return "", fmt.Errorf("URL `%s` not found", shortURL)
 }
 
 func (sh *Shortener) GenerateShortURL() string {

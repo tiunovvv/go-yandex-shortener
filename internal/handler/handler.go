@@ -80,7 +80,7 @@ func (h *Handler) GetHandler(c *gin.Context) {
 		return
 	}
 
-	fullURL, err := h.shortener.GetFullURL(shortURL)
+	fullURL, err := h.shortener.Storage.MemoryStore.GetFullURL(shortURL)
 
 	if err != nil {
 		newErrorResponce(c, http.StatusBadRequest, err.Error())

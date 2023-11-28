@@ -19,27 +19,18 @@ func (s *MemoryStore) SaveURL(url string, shortURL string) error {
 	return nil
 }
 
-func (s *MemoryStore) GetFullURL(shortURL string) string {
+func (s *MemoryStore) GetFullURL(shortURL string) (string, error) {
 	if fullURL, found := s.Urls[shortURL]; found {
-		return fullURL
+		return fullURL, nil
 	}
-	return ""
+	return "", fmt.Errorf("URL `%s` not found", shortURL)
 }
 
-func (s *MemoryStore) FindByFullURL(url string) string {
+func (s *MemoryStore) GetShortURL(fullURL string) string {
 	for key, value := range s.Urls {
-		if value == url {
+		if value == fullURL {
 			return key
 		}
 	}
 	return ""
-}
-
-func (s *MemoryStore) FindByShortURL(url string) bool {
-	for key := range s.Urls {
-		if key == url {
-			return true
-		}
-	}
-	return false
 }
