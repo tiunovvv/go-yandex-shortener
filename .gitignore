@@ -23,4 +23,5 @@ vendor/
 .vscode
 
 Makefile
+golangci-lint/report.json
 tmp/short-url-db.json

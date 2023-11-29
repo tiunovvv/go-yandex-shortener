@@ -18,27 +18,26 @@ type URLsJSON struct {
 }
 
 type FileStore struct {
-	Config      *config.Config
-	MemoryStore *MemoryStore
-	logger      *zap.Logger
-	file        *os.File
+	inMemoryStore *InMemoryStore
+	file          *os.File
+	logger        *zap.Logger
 }
 
 func NewFileStore(config *config.Config, logger *zap.Logger) *FileStore {
-	memoryStore := &MemoryStore{Urls: make(map[string]string)}
+	inMemoryStore := &InMemoryStore{urls: make(map[string]string)}
 	const perm = 0666
 	file, err := os.OpenFile(config.FileStoragePath, os.O_CREATE|os.O_RDWR|os.O_APPEND, perm)
 	if err != nil {
 		logger.Sugar().Errorf("can`t open file: %s, %w", config.FileStoragePath, err)
 	}
-	f := &FileStore{MemoryStore: memoryStore, logger: logger, file: file}
-	if err := f.LoadURLs(config.FileStoragePath); err != nil {
+	f := &FileStore{inMemoryStore: inMemoryStore, file: file, logger: logger}
+	if err := f.loadURLs(); err != nil {
 		logger.Sugar().Errorf("error getting data from temp file", err)
 	}
 	return f
 }
 
-func (f *FileStore) LoadURLs(filename string) error {
+func (f *FileStore) loadURLs() error {
 	scanner := bufio.NewScanner(f.file)
 
 	urls := make(map[string]string)
@@ -51,7 +50,7 @@ func (f *FileStore) LoadURLs(filename string) error {
 		urls[urlsJSON.ShortURL] = urlsJSON.OriginalURL
 	}
 	for k, v := range urls {
-		if err := f.MemoryStore.SaveURL(k, v); err != nil {
+		if err := f.inMemoryStore.SaveURL(k, v); err != nil {
 			return fmt.Errorf("error saving in local memory %w", err)
 		}
 	}
@@ -59,32 +58,46 @@ func (f *FileStore) LoadURLs(filename string) error {
 	return nil
 }
 
-func (f *FileStore) SaveURLInFile(shortURL string, fullURL string) {
+func (f *FileStore) SaveURL(shortURL string, fullURL string) error {
+	if err := f.inMemoryStore.SaveURL(shortURL, fullURL); err != nil {
+		return fmt.Errorf("error saving in local memory %w", err)
+	}
+
 	writer := bufio.NewWriter(f.file)
 
 	u := URLsJSON{
-		UUID:        strconv.Itoa(len(f.MemoryStore.Urls)),
+		UUID:        strconv.Itoa(len(f.inMemoryStore.urls)),
 		ShortURL:    shortURL,
 		OriginalURL: fullURL}
 
 	data, err := json.Marshal(u)
 	if err != nil {
 		f.logger.Sugar().Errorf("error masrshaling data %w", err)
-		return
+		return nil
 	}
 
 	if _, err := writer.Write(data); err != nil {
 		f.logger.Sugar().Errorf("error writing data into temp file %w", err)
-		return
+		return nil
 	}
 
 	if err := writer.WriteByte('\n'); err != nil {
 		f.logger.Sugar().Errorf("error writing newline into temp file %w", err)
-		return
+		return nil
 	}
 
 	if err := writer.Flush(); err != nil {
 		f.logger.Sugar().Errorf("error flushing temp file %w", err)
-		return
+		return nil
 	}
+
+	return nil
+}
+
+func (f *FileStore) GetFullURL(shortURL string) (string, error) {
+	return f.inMemoryStore.GetFullURL(shortURL)
+}
+
+func (f *FileStore) GetShortURL(fullURL string) string {
+	return f.inMemoryStore.GetShortURL(fullURL)
 }

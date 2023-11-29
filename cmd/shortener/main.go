@@ -3,15 +3,16 @@ package main
 import (
 	"log"
 
-	"github.com/tiunovvv/go-yandex-shortener/internal/logger"
-	"github.com/tiunovvv/go-yandex-shortener/internal/service"
+	"github.com/tiunovvv/go-yandex-shortener/internal/server"
 )
 
 func main() {
-	logger, err := logger.NewLogger()
+	server, err := server.NewServer()
 	if err != nil {
-		log.Fatalf("error occured while initializing logger: %v", err)
+		log.Fatalf("error building server: %v", err)
 	}
 
-	service.Start(logger)
+	if err := server.Start(); err != nil {
+		log.Fatalf("error starting server: %v", err)
+	}
 }

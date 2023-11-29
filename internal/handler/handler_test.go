@@ -11,9 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tiunovvv/go-yandex-shortener/internal/config"
-	"github.com/tiunovvv/go-yandex-shortener/internal/logger"
 	"github.com/tiunovvv/go-yandex-shortener/internal/shortener"
 	"github.com/tiunovvv/go-yandex-shortener/internal/storage"
+	"go.uber.org/zap"
 )
 
 func TestPostHandler(t *testing.T) {
@@ -76,7 +76,7 @@ func TestPostHandler(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, tt.post.request, bytes.NewReader([]byte(tt.post.body)))
 			w := httptest.NewRecorder()
 
-			logger, err := logger.NewLogger()
+			logger, err := zap.NewDevelopment()
 			if err != nil {
 				log.Fatalf("error occured while initializing logger: %v", err)
 				return
@@ -153,7 +153,7 @@ func TestGetHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			logger, err := logger.NewLogger()
+			logger, err := zap.NewDevelopment()
 			if err != nil {
 				log.Fatalf("error occured while initializing logger: %v", err)
 				return
@@ -163,7 +163,9 @@ func TestGetHandler(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			storage := storage.NewFileStore(config, logger)
-			storage.MemoryStore.Urls[tt.mapKey] = tt.mapValue
+			if storage.SaveURL(tt.mapValue, tt.mapKey) != nil {
+				log.Fatal("error saving URL")
+			}
 			shortener := shortener.NewShortener(storage)
 			handler := NewHandler(config, shortener, logger)
 
@@ -237,7 +239,7 @@ func TestPostApiHandler(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, tt.post.request, bytes.NewReader([]byte(tt.post.body)))
 
 			w := httptest.NewRecorder()
-			logger, err := logger.NewLogger()
+			logger, err := zap.NewDevelopment()
 			if err != nil {
 				log.Fatalf("error occured while initializing logger: %v", err)
 				return

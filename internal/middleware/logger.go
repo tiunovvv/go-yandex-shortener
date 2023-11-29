@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -28,12 +29,12 @@ func GinLogger(log *zap.Logger) gin.HandlerFunc {
 		c.Next()
 		duration := time.Since(start)
 
-		log.Sugar().Infoln(
-			"uri", c.Request.RequestURI,
-			"method", c.Request.Method,
-			"statusCode", c.Writer.Status(),
-			"duration", duration,
-			"size", blw.size,
+		log.Info("Request:",
+			zap.String("URI", c.Request.RequestURI),
+			zap.String("Method", c.Request.Method),
+			zap.String("StatusCode", strconv.Itoa(c.Writer.Status())),
+			zap.String("Duration", duration.String()),
+			zap.String("Size", strconv.Itoa(blw.size)),
 		)
 	}
 }
