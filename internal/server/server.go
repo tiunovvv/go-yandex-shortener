@@ -1,32 +1,82 @@
 package server
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"net/http"
+	"os"
+	"os/signal"
 	"time"
+
+	"github.com/tiunovvv/go-yandex-shortener/internal/config"
+	"github.com/tiunovvv/go-yandex-shortener/internal/handler"
+	"github.com/tiunovvv/go-yandex-shortener/internal/shortener"
+	"github.com/tiunovvv/go-yandex-shortener/internal/storage"
+	"go.uber.org/zap"
 )
 
 type Server struct {
-	httpServer *http.Server
+	logger *zap.Logger
+	*http.Server
 }
 
-func (s *Server) Run(serverAddress string, handler http.Handler) error {
+func NewServer() (*Server, error) {
+	logger, err := zap.NewDevelopment()
+	if err != nil {
+		return nil, fmt.Errorf("error building logger: %w", err)
+	}
+	config := config.NewConfig(logger)
+	fileStorage := storage.NewFileStore(config, logger)
+	shortener := shortener.NewShortener(fileStorage)
+	handler := handler.NewHandler(config, shortener, logger)
+	errorLog := zap.NewStdLog(logger)
 	const (
-		seconds = 10
+		seconds = 10 * time.Second
 		bytes   = 20
 	)
-
-	s.httpServer = &http.Server{
-		Addr:           serverAddress,
-		Handler:        handler,
+	s := http.Server{
+		Addr:           config.ServerAddress,
+		Handler:        handler.InitRoutes(),
+		ErrorLog:       errorLog,
 		MaxHeaderBytes: 1 << bytes,
-		ReadTimeout:    seconds * time.Second,
-		WriteTimeout:   seconds * time.Second,
+		ReadTimeout:    seconds,
+		WriteTimeout:   seconds,
 	}
 
-	if err := s.httpServer.ListenAndServe(); err != nil {
-		return fmt.Errorf("server ListenAndServe error: %w", err)
-	}
+	return &Server{logger, &s}, nil
+}
 
-	return nil
+func (s *Server) Start() error {
+	var err error
+	defer func() {
+		if er := s.logger.Sync(); er != nil {
+			err = fmt.Errorf("error sync logger: %w", er)
+		}
+	}()
+	go func() {
+		if err := s.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			s.logger.Error("Could not listen on", zap.String("addr", s.Addr), zap.Error(err))
+		}
+	}()
+	s.logger.Info("Server is ready to handle requests", zap.String("addr", s.Addr))
+	s.gracefulShutdown()
+	return err
+}
+
+func (s *Server) gracefulShutdown() {
+	quit := make(chan os.Signal, 1)
+
+	signal.Notify(quit, os.Interrupt)
+	sig := <-quit
+	s.logger.Info("Server is shutting down", zap.String("reason", sig.String()))
+	const seconds = 30 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), seconds)
+	defer cancel()
+
+	s.SetKeepAlivesEnabled(false)
+	if err := s.Shutdown(ctx); err != nil {
+		s.logger.Error("Could not gracefully shutdown the server", zap.Error(err))
+	}
+	s.logger.Info("Server stopped")
 }

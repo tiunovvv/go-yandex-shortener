@@ -22,6 +22,6 @@ vendor/
 .idea
 .vscode
 
-golangci-lint
 Makefile
-.golangci.yml
+golangci-lint/report.json
+tmp/short-url-db.json

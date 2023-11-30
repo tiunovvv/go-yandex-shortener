@@ -3,6 +3,7 @@ package handler
 import (
 	"bytes"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -12,6 +13,7 @@ import (
 	"github.com/tiunovvv/go-yandex-shortener/internal/config"
 	"github.com/tiunovvv/go-yandex-shortener/internal/shortener"
 	"github.com/tiunovvv/go-yandex-shortener/internal/storage"
+	"go.uber.org/zap"
 )
 
 func TestPostHandler(t *testing.T) {
@@ -64,8 +66,9 @@ func TestPostHandler(t *testing.T) {
 	}
 
 	config := &config.Config{
-		BaseURL:       "http://localhost:8080/",
-		ServerAddress: "localhost:8080",
+		BaseURL:         "http://localhost:8080/",
+		ServerAddress:   "localhost:8080",
+		FileStoragePath: "",
 	}
 
 	for _, tt := range tests {
@@ -73,9 +76,15 @@ func TestPostHandler(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, tt.post.request, bytes.NewReader([]byte(tt.post.body)))
 			w := httptest.NewRecorder()
 
-			storage := storage.NewStorage(config)
+			logger, err := zap.NewDevelopment()
+			if err != nil {
+				log.Fatalf("error occured while initializing logger: %v", err)
+				return
+			}
+
+			storage := storage.NewFileStore(config, logger)
 			shortener := shortener.NewShortener(storage)
-			handler := NewHandler(shortener)
+			handler := NewHandler(config, shortener, logger)
 
 			router := handler.InitRoutes()
 			router.ServeHTTP(w, request)
@@ -137,32 +146,116 @@ func TestGetHandler(t *testing.T) {
 	}
 
 	config := &config.Config{
-		BaseURL:       "http://localhost:8080/",
-		ServerAddress: "localhost:8080",
+		BaseURL:         "http://localhost:8080/",
+		ServerAddress:   "localhost:8080",
+		FileStoragePath: "",
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			logger, err := zap.NewDevelopment()
+			if err != nil {
+				log.Fatalf("error occured while initializing logger: %v", err)
+				return
+			}
+
 			request := httptest.NewRequest(http.MethodGet, tt.request, nil)
-
 			w := httptest.NewRecorder()
-			storage := storage.NewStorage(config)
 
-			storage.Urls[tt.mapKey] = tt.mapValue
+			storage := storage.NewFileStore(config, logger)
+			if storage.SaveURL(tt.mapValue, tt.mapKey) != nil {
+				log.Fatal("error saving URL")
+			}
 			shortener := shortener.NewShortener(storage)
-			handler := NewHandler(shortener)
-			router := handler.InitRoutes()
+			handler := NewHandler(config, shortener, logger)
 
+			router := handler.InitRoutes()
 			router.ServeHTTP(w, request)
 			result := w.Result()
 
-			_, err := io.ReadAll(result.Body)
 			require.NoError(t, err)
 			err = result.Body.Close()
 			require.NoError(t, err)
 
 			assert.Equal(t, tt.want.statusCode, result.StatusCode)
 			assert.Equal(t, tt.want.location, result.Header.Get("Location"))
+		})
+	}
+}
+
+func TestPostApiHandler(t *testing.T) {
+	type post struct {
+		request string
+		body    string
+	}
+	type want struct {
+		statusCode int
+	}
+	tests := []struct {
+		name string
+		post post
+		want want
+	}{
+		{
+			name: "positive test",
+			post: post{
+				request: "http://localhost:8080/api/shorten",
+				body:    "{\"url\":\"https://practicum.yandex.ru\"}",
+			},
+			want: want{
+				statusCode: 201,
+			},
+		},
+		{
+			name: "negativ test:initial body",
+			post: post{
+				request: "http://localhost:8080/api/shorten",
+				body:    "",
+			},
+			want: want{
+				statusCode: 500,
+			},
+		},
+		{
+			name: "negativ test:body is not url",
+			post: post{
+				request: "http://localhost:8080/api/shorten",
+				body:    "{\"url\":\"practicum\"}",
+			},
+			want: want{
+				statusCode: 500,
+			},
+		},
+	}
+
+	config := &config.Config{
+		BaseURL:         "http://localhost:8080/",
+		ServerAddress:   "localhost:8080",
+		FileStoragePath: "",
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodPost, tt.post.request, bytes.NewReader([]byte(tt.post.body)))
+
+			w := httptest.NewRecorder()
+			logger, err := zap.NewDevelopment()
+			if err != nil {
+				log.Fatalf("error occured while initializing logger: %v", err)
+				return
+			}
+
+			storage := storage.NewFileStore(config, logger)
+			shortener := shortener.NewShortener(storage)
+			handler := NewHandler(config, shortener, logger)
+
+			router := handler.InitRoutes()
+			router.ServeHTTP(w, request)
+			result := w.Result()
+
+			assert.Equal(t, tt.want.statusCode, result.StatusCode)
+			err = result.Body.Close()
+			require.NoError(t, err)
 		})
 	}
 }

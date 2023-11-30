@@ -3,21 +3,16 @@ package main
 import (
 	"log"
 
-	"github.com/tiunovvv/go-yandex-shortener/internal/config"
-	"github.com/tiunovvv/go-yandex-shortener/internal/handler"
 	"github.com/tiunovvv/go-yandex-shortener/internal/server"
-	"github.com/tiunovvv/go-yandex-shortener/internal/shortener"
-	"github.com/tiunovvv/go-yandex-shortener/internal/storage"
 )
 
 func main() {
-	config := config.NewConfig()
-	storage := storage.NewStorage(config)
-	shortener := shortener.NewShortener(storage)
-	handler := handler.NewHandler(shortener)
+	server, err := server.NewServer()
+	if err != nil {
+		log.Fatalf("error building server: %v", err)
+	}
 
-	srv := new(server.Server)
-	if err := srv.Run(config.ServerAddress, handler.InitRoutes()); err != nil {
-		log.Printf("error occured while running http server: %v", err)
+	if err := server.Start(); err != nil {
+		log.Fatalf("error starting server: %v", err)
 	}
 }

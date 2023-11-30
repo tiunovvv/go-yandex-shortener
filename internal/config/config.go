@@ -6,25 +6,39 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"go.uber.org/zap"
 )
 
 type Config struct {
-	ServerAddress string
-	BaseURL       string
+	logger          *zap.Logger
+	ServerAddress   string
+	BaseURL         string
+	FileStoragePath string
 }
 
-func NewConfig() *Config {
-	flagServerAddress := flag.String("a", "", "server start URL")
-	flagBaseURL := flag.String("b", "", "base of short URL")
+func NewConfig(logger *zap.Logger) *Config {
+	flagServerAddress := flag.String("a", "localhost:8080", "server start URL")
+	flagBaseURL := flag.String("b", "http://localhost:8080", "base of short URL")
+	fileStoragePath := flag.String("f", "tmp/short-url-db.json", "file storage path")
 	flag.Parse()
 
 	config := Config{
-		ServerAddress: getServerAddress(flagServerAddress),
-		BaseURL:       getBaseURL(flagBaseURL),
+		logger:          logger,
+		ServerAddress:   getServerAddress(flagServerAddress),
+		BaseURL:         getBaseURL(flagBaseURL),
+		FileStoragePath: getFileStoragePath(fileStoragePath),
 	}
 
-	log.Printf("server start URL is %s\n", config.ServerAddress)
-	log.Printf("base of short URL is %s\n", config.BaseURL)
+	logger.Sugar().Infof("server start URL is %s", config.ServerAddress)
+	logger.Sugar().Infof("base of short URL is %s", config.BaseURL)
+	if config.FileStoragePath == "" {
+		logger.Sugar().Info("file storage path is empty, disk recording is disabled")
+	}
+	if config.FileStoragePath != "" {
+		logger.Sugar().Infof("file storage path is %s", config.FileStoragePath)
+	}
+
 	return &config
 }
 
@@ -33,11 +47,7 @@ func getServerAddress(flagServerAddress *string) string {
 		return envServerAddress
 	}
 
-	if flagServerAddress != nil && *flagServerAddress != "" {
-		return *flagServerAddress
-	}
-
-	return "localhost:8080"
+	return *flagServerAddress
 }
 
 func getBaseURL(flagBaseURL *string) string {
@@ -45,11 +55,15 @@ func getBaseURL(flagBaseURL *string) string {
 		return envBaseURL
 	}
 
-	if flagBaseURL != nil && checkBaseURL(*flagBaseURL) {
-		return *flagBaseURL
+	return *flagBaseURL
+}
+
+func getFileStoragePath(fileStoragePath *string) string {
+	if envfileStoragePath := os.Getenv("FILE_STORAGE_PATH"); envfileStoragePath != "" {
+		return envfileStoragePath
 	}
 
-	return "http://localhost:8080"
+	return *fileStoragePath
 }
 
 func checkBaseURL(str string) bool {
