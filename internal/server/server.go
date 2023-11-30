@@ -50,11 +50,13 @@ func NewServer() (*Server, error) {
 func (s *Server) Start() error {
 	var err error
 	defer func() {
-		err = fmt.Errorf("error sync logger: %w", s.logger.Sync())
+		if er := s.logger.Sync(); er != nil {
+			err = fmt.Errorf("error sync logger: %w", er)
+		}
 	}()
 	go func() {
 		if err := s.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			s.logger.Fatal("Could not listen on", zap.String("addr", s.Addr), zap.Error(err))
+			s.logger.Error("Could not listen on", zap.String("addr", s.Addr), zap.Error(err))
 		}
 	}()
 	s.logger.Info("Server is ready to handle requests", zap.String("addr", s.Addr))
@@ -74,7 +76,7 @@ func (s *Server) gracefulShutdown() {
 
 	s.SetKeepAlivesEnabled(false)
 	if err := s.Shutdown(ctx); err != nil {
-		s.logger.Fatal("Could not gracefully shutdown the server", zap.Error(err))
+		s.logger.Error("Could not gracefully shutdown the server", zap.Error(err))
 	}
 	s.logger.Info("Server stopped")
 }
