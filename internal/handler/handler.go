@@ -12,14 +12,12 @@ import (
 	"github.com/tiunovvv/go-yandex-shortener/internal/middleware"
 	"github.com/tiunovvv/go-yandex-shortener/internal/models"
 	"github.com/tiunovvv/go-yandex-shortener/internal/shortener"
-	"github.com/tiunovvv/go-yandex-shortener/internal/storage"
 	"go.uber.org/zap"
 )
 
 type Handler struct {
 	config    *config.Config
 	shortener *shortener.Shortener
-	db        *storage.DataBase
 	logger    *zap.Logger
 }
 
@@ -118,7 +116,7 @@ func (h *Handler) PostAPIHandler(c *gin.Context) {
 }
 
 func (h *Handler) GetPing(c *gin.Context) {
-	if err := h.db.CheckConnect(); err != nil {
+	if err := h.shortener.CheckConnect(); err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
 	}
 	c.AbortWithStatus(http.StatusOK)

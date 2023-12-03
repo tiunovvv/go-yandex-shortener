@@ -104,3 +104,7 @@ func (f *FileStore) GetFullURL(shortURL string) (string, error) {
 func (f *FileStore) GetShortURL(fullURL string) string {
 	return f.inMemoryStore.GetShortURL(fullURL)
 }
+
+func (f *FileStore) CheckConnect() error {
+	return fmt.Errorf("can`t connect with db")
+}

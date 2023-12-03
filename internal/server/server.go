@@ -63,11 +63,11 @@ func (s *Server) Start() error {
 			err = fmt.Errorf("error sync logger: %w", er)
 		}
 	}()
-	defer func() {
-		if er := s.Close(); er != nil {
-			err = fmt.Errorf("error closing store: %w", er)
-		}
-	}()
+	// defer func() {
+	// 	if er := s.Close(); er != nil {
+	// 		err = fmt.Errorf("error closing store: %w", er)
+	// 	}
+	// }()
 	go func() {
 		if err := s.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			s.logger.Error("Could not listen on", zap.String("addr", s.Addr), zap.Error(err))

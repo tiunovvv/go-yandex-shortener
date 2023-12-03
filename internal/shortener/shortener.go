@@ -13,6 +13,7 @@ type Store interface {
 	GetShortURL(fullURL string) string
 	GetFullURL(shortURL string) (string, error)
 	SaveURL(shortURL string, fullURL string) error
+	CheckConnect() error
 }
 
 type Shortener struct {
@@ -56,4 +57,8 @@ func (sh *Shortener) GenerateShortURL() string {
 	}
 
 	return string(str)
+}
+
+func (sh *Shortener) CheckConnect() error {
+	return sh.store.CheckConnect()
 }
