@@ -11,22 +11,28 @@ import (
 	myErrors "github.com/tiunovvv/go-yandex-shortener/internal/errors"
 )
 
+type Store interface {
+	GetShortURL(fullURL string) string
+	GetFullURL(shortURL string) (string, error)
+	SaveURL(shortURL string, fullURL string) error
+}
+
 type Shortener struct {
-	fileStore *storage.FileStore
+	store Store
 }
 
 func NewShortener(fileStore *storage.FileStore) *Shortener {
 	return &Shortener{
-		fileStore: fileStore,
+		store: fileStore,
 	}
 }
 
 func (sh *Shortener) GetShortURL(fullURL string) string {
-	if shortURL := sh.fileStore.GetShortURL(fullURL); shortURL != "" {
+	if shortURL := sh.store.GetShortURL(fullURL); shortURL != "" {
 		return shortURL
 	}
 	shortURL := sh.GenerateShortURL()
-	for errors.Is(sh.fileStore.SaveURL(fullURL, shortURL), myErrors.ErrKeyAlreadyExists) {
+	for errors.Is(sh.store.SaveURL(fullURL, shortURL), myErrors.ErrKeyAlreadyExists) {
 		shortURL = sh.GenerateShortURL()
 	}
 
@@ -34,7 +40,7 @@ func (sh *Shortener) GetShortURL(fullURL string) string {
 }
 
 func (sh *Shortener) GetFullURL(shortURL string) (string, error) {
-	fullURL, err := sh.fileStore.GetFullURL(shortURL)
+	fullURL, err := sh.store.GetFullURL(shortURL)
 	if err != nil {
 		return "", fmt.Errorf("error geting fullURL from filestore: %w", err)
 	}
