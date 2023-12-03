@@ -10,11 +10,11 @@ type InMemoryStore struct {
 	urls map[string]string
 }
 
-func (i *InMemoryStore) SaveURL(url string, shortURL string) error {
+func (i *InMemoryStore) SaveURL(shortURL string, fullURL string) error {
 	if _, exists := i.urls[shortURL]; exists {
 		return fmt.Errorf("can`t save shortURL %s: %w", shortURL, errors.ErrKeyAlreadyExists)
 	}
-	i.urls[shortURL] = url
+	i.urls[shortURL] = fullURL
 
 	return nil
 }

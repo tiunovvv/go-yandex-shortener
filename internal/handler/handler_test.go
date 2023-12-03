@@ -69,6 +69,7 @@ func TestPostHandler(t *testing.T) {
 		BaseURL:         "http://localhost:8080/",
 		ServerAddress:   "localhost:8080",
 		FileStoragePath: "",
+		DatabaseDsn:     "",
 	}
 
 	for _, tt := range tests {
@@ -82,10 +83,9 @@ func TestPostHandler(t *testing.T) {
 				return
 			}
 
-			store := storage.NewFileStore(config, logger)
-			db := storage.ConnectDB(config, logger)
-			shortener := shortener.NewShortener(store)
-			handler := NewHandler(config, shortener, db, logger)
+			database := storage.NewDB(config, logger)
+			shortener := shortener.NewShortener(database)
+			handler := NewHandler(config, shortener, logger)
 
 			router := handler.InitRoutes()
 			router.ServeHTTP(w, request)
@@ -150,6 +150,7 @@ func TestGetHandler(t *testing.T) {
 		BaseURL:         "http://localhost:8080/",
 		ServerAddress:   "localhost:8080",
 		FileStoragePath: "",
+		DatabaseDsn:     "",
 	}
 
 	for _, tt := range tests {
@@ -163,13 +164,12 @@ func TestGetHandler(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, tt.request, nil)
 			w := httptest.NewRecorder()
 
-			store := storage.NewFileStore(config, logger)
-			if store.SaveURL(tt.mapValue, tt.mapKey) != nil {
+			database := storage.NewDB(config, logger)
+			if database.SaveURL(tt.mapKey, tt.mapValue) != nil {
 				log.Fatal("error saving URL")
 			}
-			db := storage.ConnectDB(config, logger)
-			shortener := shortener.NewShortener(store)
-			handler := NewHandler(config, shortener, db, logger)
+			shortener := shortener.NewShortener(database)
+			handler := NewHandler(config, shortener, logger)
 
 			router := handler.InitRoutes()
 			router.ServeHTTP(w, request)
@@ -234,6 +234,7 @@ func TestPostApiHandler(t *testing.T) {
 		BaseURL:         "http://localhost:8080/",
 		ServerAddress:   "localhost:8080",
 		FileStoragePath: "",
+		DatabaseDsn:     "",
 	}
 
 	for _, tt := range tests {
@@ -247,10 +248,9 @@ func TestPostApiHandler(t *testing.T) {
 				return
 			}
 
-			store := storage.NewFileStore(config, logger)
-			db := storage.ConnectDB(config, logger)
-			shortener := shortener.NewShortener(store)
-			handler := NewHandler(config, shortener, db, logger)
+			database := storage.NewDB(config, logger)
+			shortener := shortener.NewShortener(database)
+			handler := NewHandler(config, shortener, logger)
 
 			router := handler.InitRoutes()
 			router.ServeHTTP(w, request)

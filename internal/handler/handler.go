@@ -23,12 +23,10 @@ type Handler struct {
 	logger    *zap.Logger
 }
 
-func NewHandler(config *config.Config, shortener *shortener.Shortener,
-	db *storage.DataBase, logger *zap.Logger) *Handler {
+func NewHandler(config *config.Config, shortener *shortener.Shortener, logger *zap.Logger) *Handler {
 	return &Handler{
 		config:    config,
 		shortener: shortener,
-		db:        db,
 		logger:    logger,
 	}
 }

@@ -6,8 +6,6 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/tiunovvv/go-yandex-shortener/internal/storage"
-
 	myErrors "github.com/tiunovvv/go-yandex-shortener/internal/errors"
 )
 
@@ -21,9 +19,9 @@ type Shortener struct {
 	store Store
 }
 
-func NewShortener(fileStore *storage.FileStore) *Shortener {
+func NewShortener(store Store) *Shortener {
 	return &Shortener{
-		store: fileStore,
+		store: store,
 	}
 }
 
@@ -32,7 +30,7 @@ func (sh *Shortener) GetShortURL(fullURL string) string {
 		return shortURL
 	}
 	shortURL := sh.GenerateShortURL()
-	for errors.Is(sh.store.SaveURL(fullURL, shortURL), myErrors.ErrKeyAlreadyExists) {
+	for errors.Is(sh.store.SaveURL(shortURL, fullURL), myErrors.ErrKeyAlreadyExists) {
 		shortURL = sh.GenerateShortURL()
 	}
 

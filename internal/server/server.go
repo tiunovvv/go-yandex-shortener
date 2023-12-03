@@ -28,10 +28,9 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("error building logger: %w", err)
 	}
 	config := config.NewConfig(logger)
-	fileStorage := storage.NewFileStore(config, logger)
-	db := storage.ConnectDB(config, logger)
-	shortener := shortener.NewShortener(fileStorage)
-	handler := handler.NewHandler(config, shortener, db, logger)
+	database := storage.NewDB(config, logger)
+	shortener := shortener.NewShortener(database)
+	handler := handler.NewHandler(config, shortener, logger)
 	errorLog := zap.NewStdLog(logger)
 	const (
 		seconds = 10 * time.Second
@@ -46,7 +45,7 @@ func NewServer() (*Server, error) {
 		WriteTimeout:   seconds,
 	}
 
-	return &Server{logger, db, &s}, nil
+	return &Server{logger, database, &s}, nil
 }
 
 func (s *Server) Start() error {
