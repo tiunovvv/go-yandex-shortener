@@ -83,8 +83,8 @@ func TestPostHandler(t *testing.T) {
 				return
 			}
 
-			database := storage.NewDB(config, logger)
-			shortener := shortener.NewShortener(database)
+			store := storage.NewFileStore(config, logger)
+			shortener := shortener.NewShortener(store)
 			handler := NewHandler(config, shortener, logger)
 
 			router := handler.InitRoutes()
@@ -126,7 +126,7 @@ func TestGetHandler(t *testing.T) {
 		},
 		{
 			name:     "negativ test: initial shortURL",
-			mapKey:   "OWjwkttu",
+			mapKey:   "OWjwktt1",
 			mapValue: "http://www.yandex.ru",
 			request:  "http://localhost:8080/",
 			want: want{
@@ -136,7 +136,7 @@ func TestGetHandler(t *testing.T) {
 		},
 		{
 			name:     "negativ test: shortURL doesn't exist",
-			mapKey:   "OWjwkttu",
+			mapKey:   "OWjwktt2",
 			mapValue: "http://www.yandex.ru",
 			request:  "http://localhost:8080/123",
 			want: want{
@@ -164,11 +164,11 @@ func TestGetHandler(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, tt.request, nil)
 			w := httptest.NewRecorder()
 
-			database := storage.NewDB(config, logger)
-			if database.SaveURL(tt.mapKey, tt.mapValue) != nil {
+			store := storage.NewFileStore(config, logger)
+			if store.SaveURL(tt.mapKey, tt.mapValue) != nil {
 				log.Fatal("error saving URL")
 			}
-			shortener := shortener.NewShortener(database)
+			shortener := shortener.NewShortener(store)
 			handler := NewHandler(config, shortener, logger)
 
 			router := handler.InitRoutes()
@@ -248,8 +248,8 @@ func TestPostApiHandler(t *testing.T) {
 				return
 			}
 
-			database := storage.NewDB(config, logger)
-			shortener := shortener.NewShortener(database)
+			store := storage.NewFileStore(config, logger)
+			shortener := shortener.NewShortener(store)
 			handler := NewHandler(config, shortener, logger)
 
 			router := handler.InitRoutes()

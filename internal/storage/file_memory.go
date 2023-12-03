@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/tiunovvv/go-yandex-shortener/internal/config"
+	"github.com/tiunovvv/go-yandex-shortener/internal/shortener"
 	"go.uber.org/zap"
 )
 
@@ -23,7 +24,7 @@ type FileStore struct {
 	logger        *zap.Logger
 }
 
-func NewFileStore(config *config.Config, logger *zap.Logger) *FileStore {
+func NewFileStore(config *config.Config, logger *zap.Logger) shortener.Store {
 	inMemoryStore := &InMemoryStore{urls: make(map[string]string)}
 	const perm = 0666
 	file, err := os.OpenFile(config.FileStoragePath, os.O_CREATE|os.O_RDWR|os.O_APPEND, perm)
@@ -63,32 +64,34 @@ func (f *FileStore) SaveURL(shortURL string, fullURL string) error {
 		return fmt.Errorf("error saving in local memory %w", err)
 	}
 
-	writer := bufio.NewWriter(f.file)
+	if f.file != nil {
+		writer := bufio.NewWriter(f.file)
 
-	u := URLsJSON{
-		UUID:        strconv.Itoa(len(f.inMemoryStore.urls)),
-		ShortURL:    shortURL,
-		OriginalURL: fullURL}
+		u := URLsJSON{
+			UUID:        strconv.Itoa(len(f.inMemoryStore.urls)),
+			ShortURL:    shortURL,
+			OriginalURL: fullURL}
 
-	data, err := json.Marshal(u)
-	if err != nil {
-		f.logger.Sugar().Errorf("error masrshaling data %w", err)
-		return nil
-	}
+		data, err := json.Marshal(u)
+		if err != nil {
+			f.logger.Sugar().Errorf("error masrshaling data %w", err)
+			return nil
+		}
 
-	if _, err := writer.Write(data); err != nil {
-		f.logger.Sugar().Errorf("error writing data into temp file %w", err)
-		return nil
-	}
+		if _, err := writer.Write(data); err != nil {
+			f.logger.Sugar().Errorf("error writing data into temp file %w", err)
+			return nil
+		}
 
-	if err := writer.WriteByte('\n'); err != nil {
-		f.logger.Sugar().Errorf("error writing newline into temp file %w", err)
-		return nil
-	}
+		if err := writer.WriteByte('\n'); err != nil {
+			f.logger.Sugar().Errorf("error writing newline into temp file %w", err)
+			return nil
+		}
 
-	if err := writer.Flush(); err != nil {
-		f.logger.Sugar().Errorf("error flushing temp file %w", err)
-		return nil
+		if err := writer.Flush(); err != nil {
+			f.logger.Sugar().Errorf("error flushing temp file %w", err)
+			return nil
+		}
 	}
 
 	return nil

@@ -6,43 +6,37 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/tiunovvv/go-yandex-shortener/internal/config"
+	"github.com/tiunovvv/go-yandex-shortener/internal/shortener"
 	"go.uber.org/zap"
 )
 
 type DataBase struct {
-	fileStore *FileStore
 	*pgx.Conn
 	logger *zap.Logger
 }
 
-func NewDB(config *config.Config, logger *zap.Logger) *DataBase {
+func NewDB(config *config.Config, logger *zap.Logger) (shortener.Store, error) {
 	if config.DatabaseDsn == "" {
-		fileStorage := NewFileStore(config, logger)
-		dataBase := &DataBase{fileStorage, nil, logger}
-		return dataBase
+		return nil, fmt.Errorf("DatabaseDsn is empty")
 	}
 
 	conn, err := pgx.Connect(context.Background(), config.DatabaseDsn)
 	if err != nil {
-		logger.Sugar().Errorf("error connecting to db: %v", err)
+		return nil, fmt.Errorf("error connecting to db: %w", err)
 	}
 
 	_, err = conn.Exec(context.Background(),
 		"CREATE TABLE IF NOT EXISTS urls (short_url TEXT,full_url TEXT,PRIMARY KEY (short_url))")
 
 	if err != nil {
-		logger.Sugar().Errorf("error creating table URLS: %v", err)
+		return nil, fmt.Errorf("error creating table URLS: %w", err)
 	}
 
-	fileStorage := NewFileStore(config, logger)
-	dataBase := &DataBase{fileStorage, conn, logger}
-	return dataBase
+	dataBase := &DataBase{conn, logger}
+	return dataBase, nil
 }
 
 func (db *DataBase) CheckConnect() error {
-	if db == nil {
-		return fmt.Errorf("error connecting to db")
-	}
 	if err := db.Ping(context.Background()); err != nil {
 		return fmt.Errorf("error connecting to db: %w", err)
 	}
@@ -50,10 +44,6 @@ func (db *DataBase) CheckConnect() error {
 }
 
 func (db *DataBase) SaveURL(shortURL string, fullURL string) error {
-	if db.Conn == nil {
-		return db.fileStore.SaveURL(shortURL, fullURL)
-	}
-
 	_, err := db.Exec(context.Background(),
 		"INSERT INTO urls (short_url, full_url) VALUES ($1, $2);", shortURL, fullURL)
 
@@ -65,10 +55,6 @@ func (db *DataBase) SaveURL(shortURL string, fullURL string) error {
 }
 
 func (db *DataBase) GetFullURL(shortURL string) (string, error) {
-	if db.Conn == nil {
-		return db.fileStore.GetFullURL(shortURL)
-	}
-
 	var fullURL string
 	row := db.QueryRow(context.Background(),
 		"SELECT full_url FROM urls WHERE short_url = $1;", shortURL)
@@ -81,10 +67,6 @@ func (db *DataBase) GetFullURL(shortURL string) (string, error) {
 }
 
 func (db *DataBase) GetShortURL(fullURL string) string {
-	if db.Conn == nil {
-		return db.fileStore.GetShortURL(fullURL)
-	}
-
 	var shortURL string
 	row := db.QueryRow(context.Background(),
 		"SELECT short_url FROM urls WHERE full_url = $1;", fullURL)
