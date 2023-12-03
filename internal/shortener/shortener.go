@@ -60,5 +60,8 @@ func (sh *Shortener) GenerateShortURL() string {
 }
 
 func (sh *Shortener) CheckConnect() error {
-	return sh.store.CheckConnect()
+	if err := sh.store.CheckConnect(); err != nil {
+		return fmt.Errorf("Store connection error: %w", err)
+	}
+	return nil
 }
