@@ -18,6 +18,7 @@ import (
 
 type Server struct {
 	logger *zap.Logger
+	db     *storage.DataBase
 	*http.Server
 }
 
@@ -28,8 +29,9 @@ func NewServer() (*Server, error) {
 	}
 	config := config.NewConfig(logger)
 	fileStorage := storage.NewFileStore(config, logger)
+	db := storage.ConnectDB(config, logger)
 	shortener := shortener.NewShortener(fileStorage)
-	handler := handler.NewHandler(config, shortener, logger)
+	handler := handler.NewHandler(config, shortener, db, logger)
 	errorLog := zap.NewStdLog(logger)
 	const (
 		seconds = 10 * time.Second
@@ -44,7 +46,7 @@ func NewServer() (*Server, error) {
 		WriteTimeout:   seconds,
 	}
 
-	return &Server{logger, &s}, nil
+	return &Server{logger, db, &s}, nil
 }
 
 func (s *Server) Start() error {
@@ -52,6 +54,11 @@ func (s *Server) Start() error {
 	defer func() {
 		if er := s.logger.Sync(); er != nil {
 			err = fmt.Errorf("error sync logger: %w", er)
+		}
+	}()
+	defer func() {
+		if er := s.db.Close(context.Background()); er != nil {
+			err = fmt.Errorf("error database closing: %w", er)
 		}
 	}()
 	go func() {

@@ -82,9 +82,10 @@ func TestPostHandler(t *testing.T) {
 				return
 			}
 
-			storage := storage.NewFileStore(config, logger)
-			shortener := shortener.NewShortener(storage)
-			handler := NewHandler(config, shortener, logger)
+			store := storage.NewFileStore(config, logger)
+			db := storage.ConnectDB(config, logger)
+			shortener := shortener.NewShortener(store)
+			handler := NewHandler(config, shortener, db, logger)
 
 			router := handler.InitRoutes()
 			router.ServeHTTP(w, request)
@@ -162,12 +163,13 @@ func TestGetHandler(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, tt.request, nil)
 			w := httptest.NewRecorder()
 
-			storage := storage.NewFileStore(config, logger)
-			if storage.SaveURL(tt.mapValue, tt.mapKey) != nil {
+			store := storage.NewFileStore(config, logger)
+			if store.SaveURL(tt.mapValue, tt.mapKey) != nil {
 				log.Fatal("error saving URL")
 			}
-			shortener := shortener.NewShortener(storage)
-			handler := NewHandler(config, shortener, logger)
+			db := storage.ConnectDB(config, logger)
+			shortener := shortener.NewShortener(store)
+			handler := NewHandler(config, shortener, db, logger)
 
 			router := handler.InitRoutes()
 			router.ServeHTTP(w, request)
@@ -245,9 +247,10 @@ func TestPostApiHandler(t *testing.T) {
 				return
 			}
 
-			storage := storage.NewFileStore(config, logger)
-			shortener := shortener.NewShortener(storage)
-			handler := NewHandler(config, shortener, logger)
+			store := storage.NewFileStore(config, logger)
+			db := storage.ConnectDB(config, logger)
+			shortener := shortener.NewShortener(store)
+			handler := NewHandler(config, shortener, db, logger)
 
 			router := handler.InitRoutes()
 			router.ServeHTTP(w, request)

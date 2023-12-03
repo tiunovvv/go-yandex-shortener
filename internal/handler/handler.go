@@ -12,19 +12,23 @@ import (
 	"github.com/tiunovvv/go-yandex-shortener/internal/middleware"
 	"github.com/tiunovvv/go-yandex-shortener/internal/models"
 	"github.com/tiunovvv/go-yandex-shortener/internal/shortener"
+	"github.com/tiunovvv/go-yandex-shortener/internal/storage"
 	"go.uber.org/zap"
 )
 
 type Handler struct {
 	config    *config.Config
 	shortener *shortener.Shortener
+	db        *storage.DataBase
 	logger    *zap.Logger
 }
 
-func NewHandler(config *config.Config, shortener *shortener.Shortener, logger *zap.Logger) *Handler {
+func NewHandler(config *config.Config, shortener *shortener.Shortener,
+	db *storage.DataBase, logger *zap.Logger) *Handler {
 	return &Handler{
 		config:    config,
 		shortener: shortener,
+		db:        db,
 		logger:    logger,
 	}
 }
@@ -36,6 +40,7 @@ func (h *Handler) InitRoutes() *gin.Engine {
 	router.POST("/", h.PostHandler)
 	router.POST("/api/shorten", h.PostAPIHandler)
 	router.GET("/:id", h.GetHandler)
+	router.GET("/ping", h.GetPing)
 	return router
 }
 
@@ -112,4 +117,11 @@ func (h *Handler) PostAPIHandler(c *gin.Context) {
 	fullShortURL := h.config.BaseURL + "/" + shortURL
 	resp := models.ResponseAPIShorten{Result: fullShortURL}
 	c.AbortWithStatusJSON(http.StatusCreated, resp)
+}
+
+func (h *Handler) GetPing(c *gin.Context) {
+	if err := h.db.CheckConnect(); err != nil {
+		c.AbortWithStatus(http.StatusInternalServerError)
+	}
+	c.AbortWithStatus(http.StatusOK)
 }
