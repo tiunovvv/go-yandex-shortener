@@ -18,6 +18,7 @@ import (
 
 type Server struct {
 	logger *zap.Logger
+	store  shortener.Store
 	*http.Server
 }
 
@@ -26,10 +27,18 @@ func NewServer() (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error building logger: %w", err)
 	}
+
 	config := config.NewConfig(logger)
-	fileStorage := storage.NewFileStore(config, logger)
-	shortener := shortener.NewShortener(fileStorage)
+
+	store, err := storage.NewDB(config, logger)
+	if err != nil {
+		logger.Sugar().Errorf("can`t create database: %v", err)
+		store = storage.NewFileStore(config, logger)
+	}
+
+	shortener := shortener.NewShortener(store)
 	handler := handler.NewHandler(config, shortener, logger)
+
 	errorLog := zap.NewStdLog(logger)
 	const (
 		seconds = 10 * time.Second
@@ -44,7 +53,7 @@ func NewServer() (*Server, error) {
 		WriteTimeout:   seconds,
 	}
 
-	return &Server{logger, &s}, nil
+	return &Server{logger, store, &s}, nil
 }
 
 func (s *Server) Start() error {
@@ -52,6 +61,11 @@ func (s *Server) Start() error {
 	defer func() {
 		if er := s.logger.Sync(); er != nil {
 			err = fmt.Errorf("error sync logger: %w", er)
+		}
+	}()
+	defer func() {
+		if er := s.store.CloseStore(); er != nil {
+			err = fmt.Errorf("error closing store: %w", er)
 		}
 	}()
 	go func() {

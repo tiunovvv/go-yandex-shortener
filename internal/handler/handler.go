@@ -36,6 +36,7 @@ func (h *Handler) InitRoutes() *gin.Engine {
 	router.POST("/", h.PostHandler)
 	router.POST("/api/shorten", h.PostAPIHandler)
 	router.GET("/:id", h.GetHandler)
+	router.GET("/ping", h.GetPing)
 	return router
 }
 
@@ -112,4 +113,11 @@ func (h *Handler) PostAPIHandler(c *gin.Context) {
 	fullShortURL := h.config.BaseURL + "/" + shortURL
 	resp := models.ResponseAPIShorten{Result: fullShortURL}
 	c.AbortWithStatusJSON(http.StatusCreated, resp)
+}
+
+func (h *Handler) GetPing(c *gin.Context) {
+	if err := h.shortener.CheckConnect(); err != nil {
+		c.AbortWithStatus(http.StatusInternalServerError)
+	}
+	c.AbortWithStatus(http.StatusOK)
 }

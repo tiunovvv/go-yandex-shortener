@@ -69,6 +69,7 @@ func TestPostHandler(t *testing.T) {
 		BaseURL:         "http://localhost:8080/",
 		ServerAddress:   "localhost:8080",
 		FileStoragePath: "",
+		DatabaseDsn:     "",
 	}
 
 	for _, tt := range tests {
@@ -82,8 +83,8 @@ func TestPostHandler(t *testing.T) {
 				return
 			}
 
-			storage := storage.NewFileStore(config, logger)
-			shortener := shortener.NewShortener(storage)
+			store := storage.NewFileStore(config, logger)
+			shortener := shortener.NewShortener(store)
 			handler := NewHandler(config, shortener, logger)
 
 			router := handler.InitRoutes()
@@ -125,7 +126,7 @@ func TestGetHandler(t *testing.T) {
 		},
 		{
 			name:     "negativ test: initial shortURL",
-			mapKey:   "OWjwkttu",
+			mapKey:   "OWjwktt1",
 			mapValue: "http://www.yandex.ru",
 			request:  "http://localhost:8080/",
 			want: want{
@@ -135,7 +136,7 @@ func TestGetHandler(t *testing.T) {
 		},
 		{
 			name:     "negativ test: shortURL doesn't exist",
-			mapKey:   "OWjwkttu",
+			mapKey:   "OWjwktt2",
 			mapValue: "http://www.yandex.ru",
 			request:  "http://localhost:8080/123",
 			want: want{
@@ -149,6 +150,7 @@ func TestGetHandler(t *testing.T) {
 		BaseURL:         "http://localhost:8080/",
 		ServerAddress:   "localhost:8080",
 		FileStoragePath: "",
+		DatabaseDsn:     "",
 	}
 
 	for _, tt := range tests {
@@ -162,11 +164,11 @@ func TestGetHandler(t *testing.T) {
 			request := httptest.NewRequest(http.MethodGet, tt.request, nil)
 			w := httptest.NewRecorder()
 
-			storage := storage.NewFileStore(config, logger)
-			if storage.SaveURL(tt.mapValue, tt.mapKey) != nil {
+			store := storage.NewFileStore(config, logger)
+			if store.SaveURL(tt.mapKey, tt.mapValue) != nil {
 				log.Fatal("error saving URL")
 			}
-			shortener := shortener.NewShortener(storage)
+			shortener := shortener.NewShortener(store)
 			handler := NewHandler(config, shortener, logger)
 
 			router := handler.InitRoutes()
@@ -232,6 +234,7 @@ func TestPostApiHandler(t *testing.T) {
 		BaseURL:         "http://localhost:8080/",
 		ServerAddress:   "localhost:8080",
 		FileStoragePath: "",
+		DatabaseDsn:     "",
 	}
 
 	for _, tt := range tests {
@@ -245,8 +248,8 @@ func TestPostApiHandler(t *testing.T) {
 				return
 			}
 
-			storage := storage.NewFileStore(config, logger)
-			shortener := shortener.NewShortener(storage)
+			store := storage.NewFileStore(config, logger)
+			shortener := shortener.NewShortener(store)
 			handler := NewHandler(config, shortener, logger)
 
 			router := handler.InitRoutes()

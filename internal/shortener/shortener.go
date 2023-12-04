@@ -6,42 +6,48 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/tiunovvv/go-yandex-shortener/internal/storage"
-
 	myErrors "github.com/tiunovvv/go-yandex-shortener/internal/errors"
 )
 
-type Shortener struct {
-	fileStore *storage.FileStore
+type Store interface {
+	GetShortURL(fullURL string) string
+	GetFullURL(shortURL string) (string, error)
+	SaveURL(shortURL string, fullURL string) error
+	CheckConnect() error
+	CloseStore() error
 }
 
-func NewShortener(fileStore *storage.FileStore) *Shortener {
+type Shortener struct {
+	store Store
+}
+
+func NewShortener(store Store) *Shortener {
 	return &Shortener{
-		fileStore: fileStore,
+		store: store,
 	}
 }
 
 func (sh *Shortener) GetShortURL(fullURL string) string {
-	if shortURL := sh.fileStore.GetShortURL(fullURL); shortURL != "" {
+	if shortURL := sh.store.GetShortURL(fullURL); shortURL != "" {
 		return shortURL
 	}
-	shortURL := sh.GenerateShortURL()
-	for errors.Is(sh.fileStore.SaveURL(fullURL, shortURL), myErrors.ErrKeyAlreadyExists) {
-		shortURL = sh.GenerateShortURL()
+	shortURL := sh.generateShortURL()
+	for errors.Is(sh.store.SaveURL(shortURL, fullURL), myErrors.ErrKeyAlreadyExists) {
+		shortURL = sh.generateShortURL()
 	}
 
 	return shortURL
 }
 
 func (sh *Shortener) GetFullURL(shortURL string) (string, error) {
-	fullURL, err := sh.fileStore.GetFullURL(shortURL)
+	fullURL, err := sh.store.GetFullURL(shortURL)
 	if err != nil {
 		return "", fmt.Errorf("error geting fullURL from filestore: %w", err)
 	}
 	return fullURL, nil
 }
 
-func (sh *Shortener) GenerateShortURL() string {
+func (sh *Shortener) generateShortURL() string {
 	rand.New(rand.NewSource(time.Now().UnixNano()))
 	const length = 8
 	str := make([]byte, length)
@@ -52,4 +58,11 @@ func (sh *Shortener) GenerateShortURL() string {
 	}
 
 	return string(str)
+}
+
+func (sh *Shortener) CheckConnect() error {
+	if err := sh.store.CheckConnect(); err != nil {
+		return fmt.Errorf("Store connection error: %w", err)
+	}
+	return nil
 }
