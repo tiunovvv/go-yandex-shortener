@@ -14,6 +14,7 @@ type Store interface {
 	GetFullURL(shortURL string) (string, error)
 	SaveURL(shortURL string, fullURL string) error
 	CheckConnect() error
+	CloseStore() error
 }
 
 type Shortener struct {
@@ -30,9 +31,9 @@ func (sh *Shortener) GetShortURL(fullURL string) string {
 	if shortURL := sh.store.GetShortURL(fullURL); shortURL != "" {
 		return shortURL
 	}
-	shortURL := sh.GenerateShortURL()
+	shortURL := sh.generateShortURL()
 	for errors.Is(sh.store.SaveURL(shortURL, fullURL), myErrors.ErrKeyAlreadyExists) {
-		shortURL = sh.GenerateShortURL()
+		shortURL = sh.generateShortURL()
 	}
 
 	return shortURL
@@ -46,7 +47,7 @@ func (sh *Shortener) GetFullURL(shortURL string) (string, error) {
 	return fullURL, nil
 }
 
-func (sh *Shortener) GenerateShortURL() string {
+func (sh *Shortener) generateShortURL() string {
 	rand.New(rand.NewSource(time.Now().UnixNano()))
 	const length = 8
 	str := make([]byte, length)

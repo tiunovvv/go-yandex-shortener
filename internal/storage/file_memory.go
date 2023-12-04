@@ -108,3 +108,10 @@ func (f *FileStore) GetShortURL(fullURL string) string {
 func (f *FileStore) CheckConnect() error {
 	return fmt.Errorf("can`t connect with db")
 }
+
+func (f *FileStore) CloseStore() error {
+	if err := f.file.Close(); err != nil {
+		return fmt.Errorf("error file closing: %w", err)
+	}
+	return nil
+}

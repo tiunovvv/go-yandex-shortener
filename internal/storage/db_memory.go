@@ -78,3 +78,10 @@ func (db *DataBase) GetShortURL(fullURL string) string {
 
 	return shortURL
 }
+
+func (db *DataBase) CloseStore() error {
+	if err := db.Close(context.Background()); err != nil {
+		return fmt.Errorf("error databse closing: %w", err)
+	}
+	return nil
+}
