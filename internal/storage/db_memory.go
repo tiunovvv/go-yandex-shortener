@@ -26,7 +26,7 @@ func NewDB(config *config.Config, logger *zap.Logger) (shortener.Store, error) {
 	}
 
 	_, err = conn.Exec(context.Background(),
-		"CREATE TABLE IF NOT EXISTS urls (short_url TEXT,full_url TEXT,PRIMARY KEY (short_url))")
+		"CREATE TABLE IF NOT EXISTS urls (short_url CHAR(8),full_url TEXT,PRIMARY KEY (short_url))")
 
 	if err != nil {
 		return nil, fmt.Errorf("error creating table URLS: %w", err)
@@ -45,7 +45,7 @@ func (db *DataBase) CheckConnect() error {
 
 func (db *DataBase) SaveURL(shortURL string, fullURL string) error {
 	_, err := db.Exec(context.Background(),
-		"INSERT INTO urls (short_url, full_url) VALUES ($1, $2);", shortURL, fullURL)
+		"INSERT INTO urls (short_url, full_url) VALUES ($1, $2);", db.stringToChar8(shortURL), fullURL)
 
 	if err != nil {
 		return fmt.Errorf("error inserting into table URLS: %w", err)
@@ -84,4 +84,12 @@ func (db *DataBase) CloseStore() error {
 		return fmt.Errorf("error databse closing: %w", err)
 	}
 	return nil
+}
+
+func (db *DataBase) stringToChar8(input string) string {
+	const length = 8
+	char8Bytes := make([]byte, length)
+	copy(char8Bytes, input)
+	char8Value := string(char8Bytes)
+	return char8Value
 }
