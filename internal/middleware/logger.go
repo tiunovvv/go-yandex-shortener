@@ -17,7 +17,7 @@ type bodyLogWriter struct {
 func (w *bodyLogWriter) Write(b []byte) (int, error) {
 	size, err := w.ResponseWriter.Write(b)
 	w.size += size
-	return size, fmt.Errorf("error calculating size: %w", err)
+	return size, fmt.Errorf("failed to calculate size: %w", err)
 }
 
 func GinLogger(log *zap.Logger) gin.HandlerFunc {

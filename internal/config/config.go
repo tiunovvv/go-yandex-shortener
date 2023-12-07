@@ -15,14 +15,14 @@ type Config struct {
 	ServerAddress   string
 	BaseURL         string
 	FileStoragePath string
-	DatabaseDsn     string
+	DSN             string
 }
 
 func NewConfig(logger *zap.Logger) *Config {
 	serverAddress := flag.String("a", "localhost:8080", "server start URL")
 	baseURL := flag.String("b", "http://localhost:8080", "base of short URL")
 	fileStoragePath := flag.String("f", "tmp/short-url-db.json", "file storage path")
-	databaseDsn := flag.String("d", "postgres://postgres:postgres@localhost:5432/praktikum?sslmode=disable", "db adress")
+	dsn := flag.String("d", "postgres://postgres:postgres@localhost:5432/praktikum?sslmode=disable", "db adress")
 	flag.Parse()
 
 	config := Config{
@@ -30,18 +30,18 @@ func NewConfig(logger *zap.Logger) *Config {
 		ServerAddress:   getServerAddress(serverAddress),
 		BaseURL:         getBaseURL(baseURL),
 		FileStoragePath: getFileStoragePath(fileStoragePath),
-		DatabaseDsn:     getDatabaseDsn(databaseDsn),
+		DSN:             getDatabaseDsn(dsn),
 	}
 
-	logger.Sugar().Infof("server start URL is %s", config.ServerAddress)
-	logger.Sugar().Infof("base of short URL is %s", config.BaseURL)
+	logger.Sugar().Infof("server start URL: %s", config.ServerAddress)
+	logger.Sugar().Infof("base of short URL: %s", config.BaseURL)
 	if config.FileStoragePath == "" {
 		logger.Sugar().Info("file storage path is empty, disk recording is disabled")
 	}
 	if config.FileStoragePath != "" {
-		logger.Sugar().Infof("file storage path is %s", config.FileStoragePath)
+		logger.Sugar().Infof("file storage path: %s", config.FileStoragePath)
 	}
-	logger.Sugar().Infof("database connection address is %s", config.DatabaseDsn)
+	logger.Sugar().Infof("database connection address: %s", config.DSN)
 
 	return &config
 }

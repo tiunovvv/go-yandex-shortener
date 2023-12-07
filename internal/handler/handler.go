@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"io"
 	"net/http"
 	"net/url"
@@ -35,6 +34,7 @@ func (h *Handler) InitRoutes() *gin.Engine {
 	router.Use(middleware.GinLogger(h.logger))
 	router.POST("/", h.PostHandler)
 	router.POST("/api/shorten", h.PostAPIHandler)
+	router.POST("/api/shorten/batch", h.PostAPIBatch)
 	router.GET("/:id", h.GetHandler)
 	router.GET("/ping", h.GetPing)
 	return router
@@ -60,14 +60,14 @@ func (h *Handler) PostHandler(c *gin.Context) {
 		return
 	}
 
-	shortURL := h.shortener.GetShortURL(fullURL)
+	shortURL := h.shortener.GetShortURL(c, fullURL)
 
 	fullShortURL := h.config.BaseURL + c.Request.URL.RequestURI() + shortURL
 	c.Status(http.StatusCreated)
 
 	if _, err := c.Writer.Write([]byte(fullShortURL)); c.Request.Body == nil && err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
-		h.logger.Sugar().Errorf("Cant write %s into body", fullShortURL)
+		h.logger.Sugar().Errorf("failed to write %s into body", fullShortURL)
 		return
 	}
 }
@@ -81,7 +81,7 @@ func (h *Handler) GetHandler(c *gin.Context) {
 		return
 	}
 
-	fullURL, err := h.shortener.GetFullURL(shortURL)
+	fullURL, err := h.shortener.GetFullURL(c, shortURL)
 
 	if err != nil {
 		newErrorResponce(c, http.StatusBadRequest, err.Error())
@@ -92,11 +92,17 @@ func (h *Handler) GetHandler(c *gin.Context) {
 	c.Status(http.StatusTemporaryRedirect)
 }
 
+func (h *Handler) GetPing(c *gin.Context) {
+	if err := h.shortener.CheckConnect(c); err != nil {
+		c.AbortWithStatus(http.StatusInternalServerError)
+	}
+	c.AbortWithStatus(http.StatusOK)
+}
+
 func (h *Handler) PostAPIHandler(c *gin.Context) {
-	var req models.RequestAPIShorten
-	dec := json.NewDecoder(c.Request.Body)
-	if err := dec.Decode(&req); err != nil {
-		h.logger.Sugar().Error("cannot decode request JSON body")
+	var req models.ReqAPI
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.Sugar().Error("failed to decode request JSON body")
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
@@ -109,15 +115,27 @@ func (h *Handler) PostAPIHandler(c *gin.Context) {
 		return
 	}
 
-	shortURL := h.shortener.GetShortURL(fullURL)
+	shortURL := h.shortener.GetShortURL(c, fullURL)
 	fullShortURL := h.config.BaseURL + "/" + shortURL
-	resp := models.ResponseAPIShorten{Result: fullShortURL}
+	resp := models.ResAPI{Result: fullShortURL}
 	c.AbortWithStatusJSON(http.StatusCreated, resp)
 }
 
-func (h *Handler) GetPing(c *gin.Context) {
-	if err := h.shortener.CheckConnect(); err != nil {
+func (h *Handler) PostAPIBatch(c *gin.Context) {
+	var fullURLSlice []models.ReqAPIBatch
+
+	if err := c.ShouldBindJSON(&fullURLSlice); err != nil {
+		h.logger.Sugar().Error("failed to bind request JSON body")
 		c.AbortWithStatus(http.StatusInternalServerError)
+		return
 	}
-	c.AbortWithStatus(http.StatusOK)
+
+	shortURLSlice, err := h.shortener.GetShortURLBatch(c, fullURLSlice)
+
+	if err != nil {
+		c.AbortWithStatus(http.StatusInternalServerError)
+		h.logger.Sugar().Errorf("failed to save list of URLS")
+		return
+	}
+	c.AbortWithStatusJSON(http.StatusCreated, shortURLSlice)
 }

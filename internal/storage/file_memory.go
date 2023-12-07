@@ -2,14 +2,20 @@ package storage
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
 
 	"github.com/tiunovvv/go-yandex-shortener/internal/config"
+	"github.com/tiunovvv/go-yandex-shortener/internal/generator"
+	"github.com/tiunovvv/go-yandex-shortener/internal/models"
 	"github.com/tiunovvv/go-yandex-shortener/internal/shortener"
 	"go.uber.org/zap"
+
+	myErrors "github.com/tiunovvv/go-yandex-shortener/internal/errors"
 )
 
 type URLsJSON struct {
@@ -22,6 +28,7 @@ type FileStore struct {
 	inMemoryStore *InMemoryStore
 	file          *os.File
 	logger        *zap.Logger
+	*generator.Generator
 }
 
 func NewFileStore(config *config.Config, logger *zap.Logger) shortener.Store {
@@ -29,11 +36,11 @@ func NewFileStore(config *config.Config, logger *zap.Logger) shortener.Store {
 	const perm = 0666
 	file, err := os.OpenFile(config.FileStoragePath, os.O_CREATE|os.O_RDWR|os.O_APPEND, perm)
 	if err != nil {
-		logger.Sugar().Errorf("can`t open file: %s, %w", config.FileStoragePath, err)
+		logger.Sugar().Errorf("failed to open file: %s, %w", config.FileStoragePath, err)
 	}
 	f := &FileStore{inMemoryStore: inMemoryStore, file: file, logger: logger}
 	if err := f.loadURLs(); err != nil {
-		logger.Sugar().Errorf("error getting data from temp file", err)
+		logger.Sugar().Errorf("failed to gett data from temp file", err)
 	}
 	return f
 }
@@ -46,22 +53,22 @@ func (f *FileStore) loadURLs() error {
 		urlsJSON := URLsJSON{}
 		err := json.Unmarshal(scanner.Bytes(), &urlsJSON)
 		if err != nil {
-			return fmt.Errorf("error unmarshalling temp file %w", err)
+			return fmt.Errorf("failed to unmarshall temp file %w", err)
 		}
 		urls[urlsJSON.ShortURL] = urlsJSON.OriginalURL
 	}
 	for k, v := range urls {
 		if err := f.inMemoryStore.SaveURL(k, v); err != nil {
-			return fmt.Errorf("error saving in local memory %w", err)
+			return fmt.Errorf("failed to save in local memory %w", err)
 		}
 	}
 
 	return nil
 }
 
-func (f *FileStore) SaveURL(shortURL string, fullURL string) error {
+func (f *FileStore) SaveURL(ctx context.Context, shortURL string, fullURL string) error {
 	if err := f.inMemoryStore.SaveURL(shortURL, fullURL); err != nil {
-		return fmt.Errorf("error saving in local memory %w", err)
+		return fmt.Errorf("failed to save in local memory %w", err)
 	}
 
 	if f.file != nil {
@@ -74,22 +81,22 @@ func (f *FileStore) SaveURL(shortURL string, fullURL string) error {
 
 		data, err := json.Marshal(u)
 		if err != nil {
-			f.logger.Sugar().Errorf("error masrshaling data %w", err)
+			f.logger.Sugar().Errorf("failed to write masrshaling data %w", err)
 			return nil
 		}
 
 		if _, err := writer.Write(data); err != nil {
-			f.logger.Sugar().Errorf("error writing data into temp file %w", err)
+			f.logger.Sugar().Errorf("failed to write data into temp file %w", err)
 			return nil
 		}
 
 		if err := writer.WriteByte('\n'); err != nil {
-			f.logger.Sugar().Errorf("error writing newline into temp file %w", err)
+			f.logger.Sugar().Errorf("failed to write newline into temp file %w", err)
 			return nil
 		}
 
 		if err := writer.Flush(); err != nil {
-			f.logger.Sugar().Errorf("error flushing temp file %w", err)
+			f.logger.Sugar().Errorf("failed to flush temp file %w", err)
 			return nil
 		}
 	}
@@ -97,21 +104,39 @@ func (f *FileStore) SaveURL(shortURL string, fullURL string) error {
 	return nil
 }
 
-func (f *FileStore) GetFullURL(shortURL string) (string, error) {
+func (f *FileStore) GetFullURL(ctx context.Context, shortURL string) (string, error) {
 	return f.inMemoryStore.GetFullURL(shortURL)
 }
 
-func (f *FileStore) GetShortURL(fullURL string) string {
+func (f *FileStore) GetShortURL(ctx context.Context, fullURL string) string {
 	return f.inMemoryStore.GetShortURL(fullURL)
 }
 
-func (f *FileStore) CheckConnect() error {
-	return fmt.Errorf("can`t connect with db")
+func (f *FileStore) GetShortURLBatch(ctx context.Context, reqSlice []models.ReqAPIBatch) ([]models.ResAPIBatch, error) {
+	var resSlice []models.ResAPIBatch
+	for _, req := range reqSlice {
+		if shortURL := f.GetShortURL(ctx, req.FullURL); shortURL != "" {
+			res := models.ResAPIBatch{ID: req.ID, ShortURL: shortURL}
+			resSlice = append(resSlice, res)
+			continue
+		}
+		res := models.ResAPIBatch{ID: req.ID, ShortURL: f.GenerateShortURL()}
+		for errors.Is(f.SaveURL(ctx, res.ShortURL, req.FullURL), myErrors.ErrKeyAlreadyExists) {
+			res.ShortURL = f.GenerateShortURL()
+			continue
+		}
+		resSlice = append(resSlice, res)
+	}
+	return resSlice, nil
+}
+
+func (f *FileStore) GetPing(ctx context.Context) error {
+	return fmt.Errorf("failed to connect to databse")
 }
 
 func (f *FileStore) CloseStore() error {
 	if err := f.file.Close(); err != nil {
-		return fmt.Errorf("error file closing: %w", err)
+		return fmt.Errorf("failed to close file: %w", err)
 	}
 	return nil
 }

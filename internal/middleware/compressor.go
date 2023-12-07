@@ -18,7 +18,7 @@ type compressWriter struct {
 
 func (c *compressWriter) Write(p []byte) (int, error) {
 	w, err := c.Writer.Write(p)
-	return w, fmt.Errorf("compressor writing error: %w", err)
+	return w, fmt.Errorf("failed to write by compressor: %w", err)
 }
 
 func GinGzip(log *zap.Logger) gin.HandlerFunc {
@@ -34,7 +34,7 @@ func GinGzip(log *zap.Logger) gin.HandlerFunc {
 			c.Writer = &compressWriter{Writer: newWriter, ResponseWriter: writer}
 			defer func() {
 				if err := newWriter.Close(); err != nil {
-					log.Sugar().Errorf("Close writer error: %w", err)
+					log.Sugar().Errorf("failed to close writer: %w", err)
 					c.AbortWithStatus(http.StatusBadRequest)
 				}
 			}()
@@ -44,12 +44,12 @@ func GinGzip(log *zap.Logger) gin.HandlerFunc {
 		if strings.Contains(c.GetHeader(contentEncoding), gZip) {
 			reader, err := gzip.NewReader(c.Request.Body)
 			if err != nil {
-				log.Sugar().Errorf("Can`t read body: %w", err)
+				log.Sugar().Errorf("failed to read body: %w", err)
 				c.AbortWithStatus(http.StatusBadRequest)
 			}
 			c.Request.Body = io.NopCloser(reader)
 			if err := reader.Close(); err != nil {
-				log.Sugar().Errorf("Close reader error: %w", err)
+				log.Sugar().Errorf("failed to close reader: %w", err)
 				c.AbortWithStatus(http.StatusBadRequest)
 			}
 		}

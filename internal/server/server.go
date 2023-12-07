@@ -29,8 +29,11 @@ func NewServer() (*Server, error) {
 	}
 
 	config := config.NewConfig(logger)
-
-	store, err := storage.NewDB(config, logger)
+	const seconds = 10 * time.Second
+	ctx, cancelCtx := context.WithTimeout(context.TODO(), seconds)
+	defer cancelCtx()
+	tracer := storage.NewQueryTracer(logger)
+	store, err := storage.NewDB(ctx, config, logger, tracer)
 	if err != nil {
 		logger.Sugar().Errorf("can`t create database: %v", err)
 		store = storage.NewFileStore(config, logger)
@@ -40,10 +43,7 @@ func NewServer() (*Server, error) {
 	handler := handler.NewHandler(config, shortener, logger)
 
 	errorLog := zap.NewStdLog(logger)
-	const (
-		seconds = 10 * time.Second
-		bytes   = 20
-	)
+	const bytes = 20
 	s := http.Server{
 		Addr:           config.ServerAddress,
 		Handler:        handler.InitRoutes(),
@@ -60,20 +60,23 @@ func (s *Server) Start() error {
 	var err error
 	defer func() {
 		if er := s.logger.Sync(); er != nil {
-			err = fmt.Errorf("error sync logger: %w", er)
+			err = fmt.Errorf("failed to sync logger: %w", er)
 		}
 	}()
+
 	defer func() {
 		if er := s.store.CloseStore(); er != nil {
-			err = fmt.Errorf("error closing store: %w", er)
+			err = fmt.Errorf("failed to close store: %w", er)
 		}
 	}()
+
 	go func() {
 		if err := s.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			s.logger.Error("Could not listen on", zap.String("addr", s.Addr), zap.Error(err))
+			s.logger.Error("could not listen on", zap.String("addr", s.Addr), zap.Error(err))
 		}
 	}()
-	s.logger.Info("Server is ready to handle requests", zap.String("addr", s.Addr))
+
+	s.logger.Info("server is ready to handle requests", zap.String("addr", s.Addr))
 	s.gracefulShutdown()
 	return err
 }
@@ -83,14 +86,14 @@ func (s *Server) gracefulShutdown() {
 
 	signal.Notify(quit, os.Interrupt)
 	sig := <-quit
-	s.logger.Info("Server is shutting down", zap.String("reason", sig.String()))
-	const seconds = 30 * time.Second
-	ctx, cancel := context.WithTimeout(context.Background(), seconds)
-	defer cancel()
+	s.logger.Info("server is shutting down", zap.String("reason", sig.String()))
+	const seconds = 10 * time.Second
+	ctx, cancelCtx := context.WithTimeout(context.TODO(), seconds)
+	defer cancelCtx()
 
 	s.SetKeepAlivesEnabled(false)
 	if err := s.Shutdown(ctx); err != nil {
-		s.logger.Error("Could not gracefully shutdown the server", zap.Error(err))
+		s.logger.Error("failed to gracefully shutdown the server", zap.Error(err))
 	}
-	s.logger.Info("Server stopped")
+	s.logger.Info("server is stopped")
 }

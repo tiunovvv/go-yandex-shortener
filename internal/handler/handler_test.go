@@ -2,11 +2,13 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -69,7 +71,7 @@ func TestPostHandler(t *testing.T) {
 		BaseURL:         "http://localhost:8080/",
 		ServerAddress:   "localhost:8080",
 		FileStoragePath: "",
-		DatabaseDsn:     "",
+		DSN:             "",
 	}
 
 	for _, tt := range tests {
@@ -150,7 +152,7 @@ func TestGetHandler(t *testing.T) {
 		BaseURL:         "http://localhost:8080/",
 		ServerAddress:   "localhost:8080",
 		FileStoragePath: "",
-		DatabaseDsn:     "",
+		DSN:             "",
 	}
 
 	for _, tt := range tests {
@@ -165,7 +167,11 @@ func TestGetHandler(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			store := storage.NewFileStore(config, logger)
-			if store.SaveURL(tt.mapKey, tt.mapValue) != nil {
+
+			var ctx context.Context
+			ctx, cancelCtx := context.WithTimeout(ctx, time.Second*30)
+			defer cancelCtx()
+			if store.SaveURL(ctx, tt.mapKey, tt.mapValue) != nil {
 				log.Fatal("error saving URL")
 			}
 			shortener := shortener.NewShortener(store)
@@ -228,13 +234,24 @@ func TestPostApiHandler(t *testing.T) {
 				statusCode: 500,
 			},
 		},
+		{
+			name: "positive test several URLS",
+			post: post{
+				request: "http://localhost:8080/api/shorten/batch",
+				body: `[{\"correlation_id\": \"1\",\"original_url\": \"yandex.ru\"},
+						{\"correlation_id\": \"2\",\"original_url\": \"google.ru\"}]`,
+			},
+			want: want{
+				statusCode: 201,
+			},
+		},
 	}
 
 	config := &config.Config{
 		BaseURL:         "http://localhost:8080/",
 		ServerAddress:   "localhost:8080",
 		FileStoragePath: "",
-		DatabaseDsn:     "",
+		DSN:             "",
 	}
 
 	for _, tt := range tests {
