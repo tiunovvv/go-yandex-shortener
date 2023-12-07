@@ -4,5 +4,5 @@ import "errors"
 
 var (
 	ErrKeyAlreadyExists = errors.New("key already exists")
-	ErrURLAlreadySaved  = errors.New("full URL is already saved")
+	ErrURLAlreadySaved  = errors.New("full URL already saved")
 )
