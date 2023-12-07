@@ -34,13 +34,16 @@ type FileStore struct {
 func NewFileStore(config *config.Config, logger *zap.Logger) shortener.Store {
 	inMemoryStore := &InMemoryStore{urls: make(map[string]string)}
 	const perm = 0666
+	if config.FileStoragePath == "" {
+		return &FileStore{inMemoryStore: inMemoryStore, file: nil, logger: logger}
+	}
 	file, err := os.OpenFile(config.FileStoragePath, os.O_CREATE|os.O_RDWR|os.O_APPEND, perm)
 	if err != nil {
-		logger.Sugar().Errorf("failed to open file: %s, %w", config.FileStoragePath, err)
+		logger.Sugar().Info("failed to open file: %s, %w", config.FileStoragePath, err)
 	}
 	f := &FileStore{inMemoryStore: inMemoryStore, file: file, logger: logger}
 	if err := f.loadURLs(); err != nil {
-		logger.Sugar().Errorf("failed to gett data from temp file", err)
+		logger.Sugar().Info("failed to get data from temp file", err)
 	}
 	return f
 }

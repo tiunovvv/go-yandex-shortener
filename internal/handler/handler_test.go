@@ -168,8 +168,8 @@ func TestGetHandler(t *testing.T) {
 
 			store := storage.NewFileStore(config, logger)
 
-			var ctx context.Context
-			ctx, cancelCtx := context.WithTimeout(ctx, time.Second*30)
+			const seconds = 10 * time.Second
+			ctx, cancelCtx := context.WithTimeout(context.TODO(), seconds)
 			defer cancelCtx()
 			if store.SaveURL(ctx, tt.mapKey, tt.mapValue) != nil {
 				log.Fatal("error saving URL")
@@ -238,8 +238,7 @@ func TestPostApiHandler(t *testing.T) {
 			name: "positive test several URLS",
 			post: post{
 				request: "http://localhost:8080/api/shorten/batch",
-				body: `[{\"correlation_id\": \"1\",\"original_url\": \"yandex.ru\"},
-						{\"correlation_id\": \"2\",\"original_url\": \"google.ru\"}]`,
+				body:    "[{\"correlation_id\": \"1\",\"original_url\": \"yandex.ru\"},{\"correlation_id\": \"2\",\"original_url\": \"google.ru\"}]",
 			},
 			want: want{
 				statusCode: 201,

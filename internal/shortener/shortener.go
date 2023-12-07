@@ -66,7 +66,6 @@ func (sh *Shortener) GetFullURL(ctx context.Context, shortURL string) (string, e
 	const seconds = time.Second * 10
 	ctx, cancelCtx = context.WithTimeout(ctx, seconds)
 	defer cancelCtx()
-
 	fullURL, err := sh.store.GetFullURL(ctx, shortURL)
 	if err != nil {
 		return "", fmt.Errorf("failed to get fullURL from filestore: %w", err)

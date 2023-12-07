@@ -67,7 +67,7 @@ func (h *Handler) PostHandler(c *gin.Context) {
 
 	if _, err := c.Writer.Write([]byte(fullShortURL)); c.Request.Body == nil && err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
-		h.logger.Sugar().Errorf("failed to write %s into body", fullShortURL)
+		h.logger.Sugar().Errorf("failed to write %s into body: %w", fullShortURL, err)
 		return
 	}
 }
@@ -102,7 +102,7 @@ func (h *Handler) GetPing(c *gin.Context) {
 func (h *Handler) PostAPIHandler(c *gin.Context) {
 	var req models.ReqAPI
 	if err := c.ShouldBindJSON(&req); err != nil {
-		h.logger.Sugar().Error("failed to decode request JSON body")
+		h.logger.Sugar().Error("failed to decode request JSON body: %w", err)
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
@@ -125,7 +125,7 @@ func (h *Handler) PostAPIBatch(c *gin.Context) {
 	var fullURLSlice []models.ReqAPIBatch
 
 	if err := c.ShouldBindJSON(&fullURLSlice); err != nil {
-		h.logger.Sugar().Error("failed to bind request JSON body")
+		h.logger.Sugar().Error("failed to bind request JSON body: %w", err)
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
@@ -137,5 +137,10 @@ func (h *Handler) PostAPIBatch(c *gin.Context) {
 		h.logger.Sugar().Errorf("failed to save list of URLS")
 		return
 	}
+
+	for i := 0; i < len(shortURLSlice); i++ {
+		shortURLSlice[i].ShortURL = h.config.BaseURL + "/" + shortURLSlice[i].ShortURL
+	}
+
 	c.AbortWithStatusJSON(http.StatusCreated, shortURLSlice)
 }
