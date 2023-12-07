@@ -25,17 +25,17 @@ type Server struct {
 func NewServer() (*Server, error) {
 	logger, err := zap.NewDevelopment()
 	if err != nil {
-		return nil, fmt.Errorf("error building logger: %w", err)
+		return nil, fmt.Errorf("failed to build logger: %w", err)
 	}
 
 	config := config.NewConfig(logger)
 	const seconds = 10 * time.Second
 	ctx, cancelCtx := context.WithTimeout(context.TODO(), seconds)
 	defer cancelCtx()
-	tracer := storage.NewQueryTracer(logger)
-	store, err := storage.NewDB(ctx, config, logger, tracer)
+
+	store, err := storage.NewDB(ctx, config, logger)
 	if err != nil {
-		logger.Sugar().Errorf("can`t create database: %v", err)
+		logger.Sugar().Errorf("failed ti create database: %v", err)
 		store = storage.NewFileStore(config, logger)
 	}
 

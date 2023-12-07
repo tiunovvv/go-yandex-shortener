@@ -23,7 +23,6 @@ func NewDB(
 	ctx context.Context,
 	config *config.Config,
 	logger *zap.Logger,
-	queryTracer *queryTracer,
 ) (shortener.Store, error) {
 	if config.DSN == "" {
 		return nil, fmt.Errorf("DSN is empty")
@@ -34,6 +33,7 @@ func NewDB(
 		return nil, fmt.Errorf("failed to parse the DSN: %w", err)
 	}
 
+	queryTracer := NewQueryTracer(logger)
 	poolCfg.ConnConfig.Tracer = queryTracer
 	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
@@ -120,7 +120,7 @@ func (db *DataBase) GetShortURLBatch(ctx context.Context, reqSlice []models.ReqA
 		`INSERT INTO urls (short_url, full_url)
 			VALUES ($1, $2);`
 
-	var resSlice []models.ResAPIBatch
+	resSlice := make([]models.ResAPIBatch, 0, len(reqSlice))
 	for _, req := range reqSlice {
 		if shortURL := db.GetShortURL(ctx, req.FullURL); shortURL != "" {
 			res := models.ResAPIBatch{ID: req.ID, ShortURL: shortURL}

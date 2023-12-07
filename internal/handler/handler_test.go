@@ -238,7 +238,8 @@ func TestPostApiHandler(t *testing.T) {
 			name: "positive test several URLS",
 			post: post{
 				request: "http://localhost:8080/api/shorten/batch",
-				body:    "[{\"correlation_id\": \"1\",\"original_url\": \"yandex.ru\"},{\"correlation_id\": \"2\",\"original_url\": \"google.ru\"}]",
+				body: `[{"correlation_id": "1","original_url": "yandex.ru"},
+				           {"correlation_id": "2","original_url": "google.ru"}]`,
 			},
 			want: want{
 				statusCode: 201,

@@ -116,7 +116,7 @@ func (f *FileStore) GetShortURL(ctx context.Context, fullURL string) string {
 }
 
 func (f *FileStore) GetShortURLBatch(ctx context.Context, reqSlice []models.ReqAPIBatch) ([]models.ResAPIBatch, error) {
-	var resSlice []models.ResAPIBatch
+	resSlice := make([]models.ResAPIBatch, 0, len(reqSlice))
 	for _, req := range reqSlice {
 		if shortURL := f.GetShortURL(ctx, req.FullURL); shortURL != "" {
 			res := models.ResAPIBatch{ID: req.ID, ShortURL: shortURL}
