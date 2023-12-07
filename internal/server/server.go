@@ -18,23 +18,32 @@ import (
 
 type Server struct {
 	logger *zap.Logger
+	store  shortener.Store
 	*http.Server
 }
 
 func NewServer() (*Server, error) {
 	logger, err := zap.NewDevelopment()
 	if err != nil {
-		return nil, fmt.Errorf("error building logger: %w", err)
+		return nil, fmt.Errorf("failed to build logger: %w", err)
 	}
+
 	config := config.NewConfig(logger)
-	fileStorage := storage.NewFileStore(config, logger)
-	shortener := shortener.NewShortener(fileStorage)
+	const seconds = 10 * time.Second
+	ctx, cancelCtx := context.WithTimeout(context.TODO(), seconds)
+	defer cancelCtx()
+
+	store, err := storage.NewDB(ctx, config, logger)
+	if err != nil {
+		logger.Sugar().Errorf("failed ti create database: %v", err)
+		store = storage.NewFileStore(config, logger)
+	}
+
+	shortener := shortener.NewShortener(store)
 	handler := handler.NewHandler(config, shortener, logger)
+
 	errorLog := zap.NewStdLog(logger)
-	const (
-		seconds = 10 * time.Second
-		bytes   = 20
-	)
+	const bytes = 20
 	s := http.Server{
 		Addr:           config.ServerAddress,
 		Handler:        handler.InitRoutes(),
@@ -44,22 +53,30 @@ func NewServer() (*Server, error) {
 		WriteTimeout:   seconds,
 	}
 
-	return &Server{logger, &s}, nil
+	return &Server{logger, store, &s}, nil
 }
 
 func (s *Server) Start() error {
 	var err error
 	defer func() {
 		if er := s.logger.Sync(); er != nil {
-			err = fmt.Errorf("error sync logger: %w", er)
+			err = fmt.Errorf("failed to sync logger: %w", er)
 		}
 	}()
+
+	defer func() {
+		if er := s.store.CloseStore(); er != nil {
+			err = fmt.Errorf("failed to close store: %w", er)
+		}
+	}()
+
 	go func() {
 		if err := s.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			s.logger.Error("Could not listen on", zap.String("addr", s.Addr), zap.Error(err))
+			s.logger.Error("could not listen on", zap.String("addr", s.Addr), zap.Error(err))
 		}
 	}()
-	s.logger.Info("Server is ready to handle requests", zap.String("addr", s.Addr))
+
+	s.logger.Info("server is ready to handle requests", zap.String("addr", s.Addr))
 	s.gracefulShutdown()
 	return err
 }
@@ -69,14 +86,14 @@ func (s *Server) gracefulShutdown() {
 
 	signal.Notify(quit, os.Interrupt)
 	sig := <-quit
-	s.logger.Info("Server is shutting down", zap.String("reason", sig.String()))
-	const seconds = 30 * time.Second
-	ctx, cancel := context.WithTimeout(context.Background(), seconds)
-	defer cancel()
+	s.logger.Info("server is shutting down", zap.String("reason", sig.String()))
+	const seconds = 10 * time.Second
+	ctx, cancelCtx := context.WithTimeout(context.TODO(), seconds)
+	defer cancelCtx()
 
 	s.SetKeepAlivesEnabled(false)
 	if err := s.Shutdown(ctx); err != nil {
-		s.logger.Error("Could not gracefully shutdown the server", zap.Error(err))
+		s.logger.Error("failed to gracefully shutdown the server", zap.Error(err))
 	}
-	s.logger.Info("Server stopped")
+	s.logger.Info("server is stopped")
 }
