@@ -30,21 +30,21 @@ func NewShortener(store Store) *Shortener {
 	}
 }
 
-func (sh *Shortener) GetShortURL(ctx context.Context, fullURL string) string {
+func (sh *Shortener) GetShortURL(ctx context.Context, fullURL string) (string, error) {
 	var cancelCtx context.CancelFunc
 	const seconds = time.Second * 10
 	ctx, cancelCtx = context.WithTimeout(ctx, seconds)
 	defer cancelCtx()
 
 	if shortURL := sh.store.GetShortURL(ctx, fullURL); shortURL != "" {
-		return shortURL
+		return shortURL, myErrors.ErrURLAlreadySaved
 	}
 	shortURL := sh.store.GenerateShortURL()
 	for errors.Is(sh.store.SaveURL(ctx, shortURL, fullURL), myErrors.ErrKeyAlreadyExists) {
 		shortURL = sh.store.GenerateShortURL()
 	}
 
-	return shortURL
+	return shortURL, nil
 }
 
 func (sh *Shortener) GetShortURLBatch(ctx context.Context, fullURL []models.ReqAPIBatch) ([]models.ResAPIBatch, error) {

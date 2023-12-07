@@ -3,7 +3,7 @@ package storage
 import (
 	"fmt"
 
-	"github.com/tiunovvv/go-yandex-shortener/internal/errors"
+	myErrors "github.com/tiunovvv/go-yandex-shortener/internal/errors"
 )
 
 type InMemoryStore struct {
@@ -12,7 +12,7 @@ type InMemoryStore struct {
 
 func (i *InMemoryStore) SaveURL(shortURL string, fullURL string) error {
 	if _, exists := i.urls[shortURL]; exists {
-		return fmt.Errorf("failed to save shortURL %s: %w", shortURL, errors.ErrKeyAlreadyExists)
+		return fmt.Errorf("failed to save shortURL %s: %w", shortURL, myErrors.ErrKeyAlreadyExists)
 	}
 	i.urls[shortURL] = fullURL
 

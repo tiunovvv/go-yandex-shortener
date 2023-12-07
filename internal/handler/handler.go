@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -12,6 +13,8 @@ import (
 	"github.com/tiunovvv/go-yandex-shortener/internal/models"
 	"github.com/tiunovvv/go-yandex-shortener/internal/shortener"
 	"go.uber.org/zap"
+
+	myErrors "github.com/tiunovvv/go-yandex-shortener/internal/errors"
 )
 
 type Handler struct {
@@ -60,10 +63,14 @@ func (h *Handler) PostHandler(c *gin.Context) {
 		return
 	}
 
-	shortURL := h.shortener.GetShortURL(c, fullURL)
-
+	shortURL, err := h.shortener.GetShortURL(c, fullURL)
 	fullShortURL := h.config.BaseURL + c.Request.URL.RequestURI() + shortURL
-	c.Status(http.StatusCreated)
+
+	if errors.Is(err, myErrors.ErrURLAlreadySaved) {
+		c.Status(http.StatusConflict)
+	} else {
+		c.Status(http.StatusCreated)
+	}
 
 	if _, err := c.Writer.Write([]byte(fullShortURL)); c.Request.Body == nil && err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
@@ -115,9 +122,15 @@ func (h *Handler) PostAPIHandler(c *gin.Context) {
 		return
 	}
 
-	shortURL := h.shortener.GetShortURL(c, fullURL)
+	shortURL, err := h.shortener.GetShortURL(c, fullURL)
 	fullShortURL := h.config.BaseURL + "/" + shortURL
 	resp := models.ResAPI{Result: fullShortURL}
+
+	if errors.Is(err, myErrors.ErrURLAlreadySaved) {
+		c.AbortWithStatusJSON(http.StatusConflict, resp)
+		return
+	}
+
 	c.AbortWithStatusJSON(http.StatusCreated, resp)
 }
 
