@@ -20,11 +20,19 @@ type Store interface {
 
 func NewStore(ctx context.Context, config *config.Config, logger *zap.Logger) (Store, error) {
 	if len(config.DSN) != 0 {
-		return NewDatabaseStore(ctx, config.DSN, logger)
+		store, err := NewDatabaseStore(ctx, config.DSN, logger)
+		if err == nil {
+			return store, nil
+		}
+		logger.Sugar().Errorf("failed to create storage using DB: %w", err)
 	}
 
 	if len(config.FilePath) != 0 {
-		return NewFileStore(config.FilePath, logger)
+		store, err := NewFileStore(config.FilePath, logger)
+		if err == nil {
+			return store, nil
+		}
+		logger.Sugar().Errorf("failed to create storage using File: %w", err)
 	}
 
 	return NewInMemoryStore(), nil
