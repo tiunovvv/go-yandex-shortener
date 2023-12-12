@@ -2,33 +2,23 @@ package storage
 
 import (
 	"context"
+	"math/rand"
+	"time"
 
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/tiunovvv/go-yandex-shortener/internal/config"
-	"github.com/tiunovvv/go-yandex-shortener/internal/generator"
 	"github.com/tiunovvv/go-yandex-shortener/internal/models"
-	"github.com/tiunovvv/go-yandex-shortener/internal/shortener"
 	"go.uber.org/zap"
 )
 
 type DataBase struct {
 	pool   *pgxpool.Pool
 	logger *zap.Logger
-	*generator.Generator
 }
 
-func NewDB(
-	ctx context.Context,
-	config *config.Config,
-	logger *zap.Logger,
-) (shortener.Store, error) {
-	if config.DSN == "" {
-		return nil, fmt.Errorf("DSN is empty")
-	}
-
-	poolCfg, err := pgxpool.ParseConfig(config.DSN)
+func NewDatabaseStore(ctx context.Context, dsn string, logger *zap.Logger) (Store, error) {
+	poolCfg, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse the DSN: %w", err)
 	}
@@ -71,7 +61,7 @@ func (db *DataBase) SaveURL(ctx context.Context, shortURL string, fullURL string
 		`INSERT INTO urls (short_url, full_url) 
 			VALUES ($1, $2);`
 
-	_, err := db.pool.Exec(ctx, insertSchemaURLs, db.stringToChar8(shortURL), fullURL)
+	_, err := db.pool.Exec(ctx, insertSchemaURLs, []byte(shortURL), fullURL)
 
 	if err != nil {
 		return fmt.Errorf("failed to insert row: %w", err)
@@ -129,7 +119,7 @@ func (db *DataBase) GetShortURLBatch(ctx context.Context, reqSlice []models.ReqA
 		}
 
 		res := models.ResAPIBatch{ID: req.ID, ShortURL: db.GenerateShortURL()}
-		result, err := tx.Exec(ctx, insertSchemaURLs, db.stringToChar8(res.ShortURL), req.FullURL)
+		result, err := tx.Exec(ctx, insertSchemaURLs, []byte(res.ShortURL), req.FullURL)
 		if err != nil {
 			if tx.Rollback(ctx) != nil {
 				return nil, fmt.Errorf("failed to rollback: %w", err)
@@ -139,7 +129,7 @@ func (db *DataBase) GetShortURLBatch(ctx context.Context, reqSlice []models.ReqA
 
 		for result.RowsAffected() == 0 {
 			res = models.ResAPIBatch{ID: req.ID, ShortURL: db.GenerateShortURL()}
-			result, err = tx.Exec(ctx, insertSchemaURLs, db.stringToChar8(res.ShortURL), req.FullURL)
+			result, err = tx.Exec(ctx, insertSchemaURLs, []byte(res.ShortURL), req.FullURL)
 			if err != nil {
 				if tx.Rollback(ctx) != nil {
 					return nil, fmt.Errorf("failed to rollback: %w", err)
@@ -157,15 +147,20 @@ func (db *DataBase) GetShortURLBatch(ctx context.Context, reqSlice []models.ReqA
 	return resSlice, nil
 }
 
-func (db *DataBase) CloseStore() error {
+func (db *DataBase) Close() error {
 	db.pool.Close()
 	return nil
 }
 
-func (db *DataBase) stringToChar8(input string) string {
+func (db *DataBase) GenerateShortURL() string {
+	rand.New(rand.NewSource(time.Now().UnixNano()))
 	const length = 8
-	char8Bytes := make([]byte, length)
-	copy(char8Bytes, input)
-	char8Value := string(char8Bytes)
-	return char8Value
+	str := make([]byte, length)
+
+	charset := "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+	for i := range str {
+		str[i] = charset[rand.Intn(len(charset))]
+	}
+
+	return string(str)
 }

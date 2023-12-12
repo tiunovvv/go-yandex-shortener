@@ -18,32 +18,30 @@ import (
 
 type Server struct {
 	logger *zap.Logger
-	store  shortener.Store
+	store  storage.Store
 	*http.Server
 }
 
-func NewServer() (*Server, error) {
+func NewServer(ctx context.Context) (*Server, error) {
 	logger, err := zap.NewDevelopment()
 	if err != nil {
 		return nil, fmt.Errorf("failed to build logger: %w", err)
 	}
 
 	config := config.NewConfig(logger)
-	const seconds = 10 * time.Second
-	ctx, cancelCtx := context.WithTimeout(context.TODO(), seconds)
-	defer cancelCtx()
-
-	store, err := storage.NewDB(ctx, config, logger)
+	store, err := storage.NewStore(ctx, config, logger)
 	if err != nil {
-		logger.Sugar().Errorf("failed ti create database: %v", err)
-		store = storage.NewFileStore(config, logger)
+		return nil, fmt.Errorf("failed to create store: %w", err)
 	}
 
 	shortener := shortener.NewShortener(store)
 	handler := handler.NewHandler(config, shortener, logger)
 
 	errorLog := zap.NewStdLog(logger)
-	const bytes = 20
+	const (
+		bytes   = 20
+		seconds = 10 * time.Second
+	)
 	s := http.Server{
 		Addr:           config.ServerAddress,
 		Handler:        handler.InitRoutes(),
@@ -65,7 +63,7 @@ func (s *Server) Start() error {
 	}()
 
 	defer func() {
-		if er := s.store.CloseStore(); er != nil {
+		if er := s.store.Close(); er != nil {
 			err = fmt.Errorf("failed to close store: %w", er)
 		}
 	}()
@@ -88,7 +86,7 @@ func (s *Server) gracefulShutdown() {
 	sig := <-quit
 	s.logger.Info("server is shutting down", zap.String("reason", sig.String()))
 	const seconds = 10 * time.Second
-	ctx, cancelCtx := context.WithTimeout(context.TODO(), seconds)
+	ctx, cancelCtx := context.WithTimeout(context.Background(), seconds)
 	defer cancelCtx()
 
 	s.SetKeepAlivesEnabled(false)

@@ -11,35 +11,35 @@ import (
 )
 
 type Config struct {
-	logger          *zap.Logger
-	ServerAddress   string
-	BaseURL         string
-	FileStoragePath string
-	DSN             string
+	logger        *zap.Logger
+	ServerAddress string
+	BaseURL       string
+	FilePath      string
+	DSN           string
 }
 
 func NewConfig(logger *zap.Logger) *Config {
 	serverAddress := flag.String("a", "localhost:8080", "server start URL")
 	baseURL := flag.String("b", "http://localhost:8080", "base of short URL")
-	fileStoragePath := flag.String("f", "tmp/short-url-db.json", "file storage path")
+	filePath := flag.String("f", "tmp/short-url-db.json", "file storage path")
 	dsn := flag.String("d", "postgres://postgres:postgres@localhost:5432/praktikum?sslmode=disable", "db adress")
 	flag.Parse()
 
 	config := Config{
-		logger:          logger,
-		ServerAddress:   getServerAddress(serverAddress),
-		BaseURL:         getBaseURL(baseURL),
-		FileStoragePath: getFileStoragePath(fileStoragePath),
-		DSN:             getDatabaseDsn(dsn),
+		logger:        logger,
+		ServerAddress: getServerAddress(serverAddress),
+		BaseURL:       getBaseURL(baseURL),
+		FilePath:      getFilePath(filePath),
+		DSN:           getDatabaseDsn(dsn),
 	}
 
 	logger.Sugar().Infof("server start URL: %s", config.ServerAddress)
 	logger.Sugar().Infof("base of short URL: %s", config.BaseURL)
-	if config.FileStoragePath == "" {
+	if config.FilePath == "" {
 		logger.Sugar().Info("file storage path is empty, disk recording is disabled")
 	}
-	if config.FileStoragePath != "" {
-		logger.Sugar().Infof("file storage path: %s", config.FileStoragePath)
+	if config.FilePath != "" {
+		logger.Sugar().Infof("file storage path: %s", config.FilePath)
 	}
 	logger.Sugar().Infof("database connection address: %s", config.DSN)
 
@@ -62,12 +62,12 @@ func getBaseURL(flagBaseURL *string) string {
 	return *flagBaseURL
 }
 
-func getFileStoragePath(fileStoragePath *string) string {
-	if envFileStoragePath := os.Getenv("FILE_STORAGE_PATH"); envFileStoragePath != "" {
-		return envFileStoragePath
+func getFilePath(filePath *string) string {
+	if envFilePath := os.Getenv("FILE_STORAGE_PATH"); envFilePath != "" {
+		return envFilePath
 	}
 
-	return *fileStoragePath
+	return *filePath
 }
 
 func getDatabaseDsn(databaseDsn *string) string {

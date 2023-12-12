@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -64,7 +65,7 @@ func (h *Handler) PostHandler(c *gin.Context) {
 	}
 
 	shortURL, err := h.shortener.GetShortURL(c, fullURL)
-	fullShortURL := h.config.BaseURL + c.Request.URL.RequestURI() + shortURL
+	fullShortURL := fmt.Sprintf("%s%s%s", h.config.BaseURL, c.Request.URL.RequestURI(), shortURL)
 
 	if errors.Is(err, myErrors.ErrURLAlreadySaved) {
 		c.Status(http.StatusConflict)
@@ -123,7 +124,7 @@ func (h *Handler) PostAPIHandler(c *gin.Context) {
 	}
 
 	shortURL, err := h.shortener.GetShortURL(c, fullURL)
-	fullShortURL := h.config.BaseURL + "/" + shortURL
+	fullShortURL := fmt.Sprintf("%s/%s", h.config.BaseURL, shortURL)
 	resp := models.ResAPI{Result: fullShortURL}
 
 	if errors.Is(err, myErrors.ErrURLAlreadySaved) {
@@ -152,7 +153,7 @@ func (h *Handler) PostAPIBatch(c *gin.Context) {
 	}
 
 	for i := 0; i < len(shortURLSlice); i++ {
-		shortURLSlice[i].ShortURL = h.config.BaseURL + "/" + shortURLSlice[i].ShortURL
+		shortURLSlice[i].ShortURL = fmt.Sprintf("%s/%s", h.config.BaseURL, shortURLSlice[i].ShortURL)
 	}
 
 	c.AbortWithStatusJSON(http.StatusCreated, shortURLSlice)

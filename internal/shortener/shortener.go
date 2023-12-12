@@ -8,34 +8,20 @@ import (
 
 	myErrors "github.com/tiunovvv/go-yandex-shortener/internal/errors"
 	"github.com/tiunovvv/go-yandex-shortener/internal/models"
+	"github.com/tiunovvv/go-yandex-shortener/internal/storage"
 )
 
-type Store interface {
-	GetShortURL(ctx context.Context, fullURL string) string
-	GetFullURL(ctx context.Context, shortURL string) (string, error)
-	GetShortURLBatch(ctx context.Context, fullURL []models.ReqAPIBatch) ([]models.ResAPIBatch, error)
-	SaveURL(ctx context.Context, shortURL string, fullURL string) error
-	GetPing(ctx context.Context) error
-	CloseStore() error
-	GenerateShortURL() string
-}
-
 type Shortener struct {
-	store Store
+	store storage.Store
 }
 
-func NewShortener(store Store) *Shortener {
+func NewShortener(store storage.Store) *Shortener {
 	return &Shortener{
 		store: store,
 	}
 }
 
 func (sh *Shortener) GetShortURL(ctx context.Context, fullURL string) (string, error) {
-	var cancelCtx context.CancelFunc
-	const seconds = time.Second * 10
-	ctx, cancelCtx = context.WithTimeout(ctx, seconds)
-	defer cancelCtx()
-
 	if shortURL := sh.store.GetShortURL(ctx, fullURL); shortURL != "" {
 		return shortURL, myErrors.ErrURLAlreadySaved
 	}

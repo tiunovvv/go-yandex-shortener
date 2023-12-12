@@ -68,10 +68,10 @@ func TestPostHandler(t *testing.T) {
 	}
 
 	config := &config.Config{
-		BaseURL:         "http://localhost:8080/",
-		ServerAddress:   "localhost:8080",
-		FileStoragePath: "",
-		DSN:             "",
+		BaseURL:       "http://localhost:8080/",
+		ServerAddress: "localhost:8080",
+		FilePath:      "",
+		DSN:           "",
 	}
 
 	for _, tt := range tests {
@@ -81,11 +81,15 @@ func TestPostHandler(t *testing.T) {
 
 			logger, err := zap.NewDevelopment()
 			if err != nil {
-				log.Fatalf("error occured while initializing logger: %v", err)
+				log.Fatalf("failed to initialize logger: %v", err)
 				return
 			}
 
-			store := storage.NewFileStore(config, logger)
+			store, err := storage.NewStore(context.Background(), config, logger)
+			if err != nil {
+				log.Fatalf("failed to create storage: %v", err)
+				return
+			}
 			shortener := shortener.NewShortener(store)
 			handler := NewHandler(config, shortener, logger)
 
@@ -149,30 +153,34 @@ func TestGetHandler(t *testing.T) {
 	}
 
 	config := &config.Config{
-		BaseURL:         "http://localhost:8080/",
-		ServerAddress:   "localhost:8080",
-		FileStoragePath: "",
-		DSN:             "",
+		BaseURL:       "http://localhost:8080/",
+		ServerAddress: "localhost:8080",
+		FilePath:      "",
+		DSN:           "",
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			logger, err := zap.NewDevelopment()
 			if err != nil {
-				log.Fatalf("error occured while initializing logger: %v", err)
+				log.Fatalf("failed to initialize logger: %v", err)
 				return
 			}
 
 			request := httptest.NewRequest(http.MethodGet, tt.request, nil)
 			w := httptest.NewRecorder()
 
-			store := storage.NewFileStore(config, logger)
+			store, err := storage.NewStore(context.Background(), config, logger)
+			if err != nil {
+				log.Fatalf("failed to create storage: %v", err)
+				return
+			}
 
 			const seconds = 10 * time.Second
 			ctx, cancelCtx := context.WithTimeout(context.TODO(), seconds)
 			defer cancelCtx()
 			if store.SaveURL(ctx, tt.mapKey, tt.mapValue) != nil {
-				log.Fatal("error saving URL")
+				log.Fatal("failed to save URL")
 			}
 			shortener := shortener.NewShortener(store)
 			handler := NewHandler(config, shortener, logger)
@@ -248,10 +256,10 @@ func TestPostApiHandler(t *testing.T) {
 	}
 
 	config := &config.Config{
-		BaseURL:         "http://localhost:8080/",
-		ServerAddress:   "localhost:8080",
-		FileStoragePath: "",
-		DSN:             "",
+		BaseURL:       "http://localhost:8080/",
+		ServerAddress: "localhost:8080",
+		FilePath:      "",
+		DSN:           "",
 	}
 
 	for _, tt := range tests {
@@ -261,11 +269,15 @@ func TestPostApiHandler(t *testing.T) {
 			w := httptest.NewRecorder()
 			logger, err := zap.NewDevelopment()
 			if err != nil {
-				log.Fatalf("error occured while initializing logger: %v", err)
+				log.Fatalf("failed to initialize logger: %v", err)
 				return
 			}
 
-			store := storage.NewFileStore(config, logger)
+			store, err := storage.NewStore(context.Background(), config, logger)
+			if err != nil {
+				log.Fatalf("failed to create storage: %v", err)
+				return
+			}
 			shortener := shortener.NewShortener(store)
 			handler := NewHandler(config, shortener, logger)
 
