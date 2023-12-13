@@ -2,15 +2,22 @@ package storage
 
 import (
 	"context"
+	"embed"
+	"errors"
 	"math/rand"
 	"time"
 
 	"fmt"
 
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/tiunovvv/go-yandex-shortener/internal/models"
 	"go.uber.org/zap"
 )
+
+const insertSchemaURLs = `INSERT INTO urls (short_url, full_url) VALUES ($1, $2);`
 
 type DataBase struct {
 	pool   *pgxpool.Pool
@@ -33,20 +40,33 @@ func NewDatabaseStore(ctx context.Context, dsn string, logger *zap.Logger) (Stor
 		return nil, fmt.Errorf("failed to ping DB: %w", err)
 	}
 
-	createSchemaURLs :=
-		`CREATE TABLE IF NOT EXISTS urls(
-			short_url CHAR(8) PRIMARY KEY NOT NULL,
-			full_url VARCHAR(200) NOT NULL
-		)`
-
-	_, err = pool.Exec(ctx, createSchemaURLs)
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to creati table URLS: %w", err)
+	if err := runMigrations(dsn); err != nil {
+		return nil, fmt.Errorf("failed to run DB migrations: %w", err)
 	}
 
 	dataBase := &DataBase{pool: pool, logger: logger}
 	return dataBase, nil
+}
+
+//go:embed migrations/*.sql
+var migrationsDir embed.FS
+
+func runMigrations(dsn string) error {
+	d, err := iofs.New(migrationsDir, "migrations")
+	if err != nil {
+		return fmt.Errorf("failed to return an iofs driver: %w", err)
+	}
+
+	m, err := migrate.NewWithSourceInstance("iofs", d, dsn)
+	if err != nil {
+		return fmt.Errorf("failed to get a new migrate instance: %w", err)
+	}
+	if err := m.Up(); err != nil {
+		if !errors.Is(err, migrate.ErrNoChange) {
+			return fmt.Errorf("failed to apply migrations to the DB: %w", err)
+		}
+	}
+	return nil
 }
 
 func (db *DataBase) GetPing(ctx context.Context) error {
@@ -57,10 +77,6 @@ func (db *DataBase) GetPing(ctx context.Context) error {
 }
 
 func (db *DataBase) SaveURL(ctx context.Context, shortURL string, fullURL string) error {
-	insertSchemaURLs :=
-		`INSERT INTO urls (short_url, full_url) 
-			VALUES ($1, $2);`
-
 	_, err := db.pool.Exec(ctx, insertSchemaURLs, []byte(shortURL), fullURL)
 
 	if err != nil {
@@ -71,9 +87,7 @@ func (db *DataBase) SaveURL(ctx context.Context, shortURL string, fullURL string
 }
 
 func (db *DataBase) GetFullURL(ctx context.Context, shortURL string) (string, error) {
-	selectSchemaFullURL :=
-		`SELECT full_url FROM urls 
-			WHERE short_url = $1;`
+	const selectSchemaFullURL = `SELECT full_url FROM urls WHERE short_url = $1;`
 
 	row := db.pool.QueryRow(ctx, selectSchemaFullURL, shortURL)
 
@@ -86,9 +100,7 @@ func (db *DataBase) GetFullURL(ctx context.Context, shortURL string) (string, er
 }
 
 func (db *DataBase) GetShortURL(ctx context.Context, fullURL string) string {
-	selectSchemaShortURL :=
-		`SELECT short_url FROM urls 
-			WHERE full_url = $1;`
+	const selectSchemaShortURL = `SELECT short_url FROM urls WHERE full_url = $1;`
 
 	row := db.pool.QueryRow(ctx, selectSchemaShortURL, fullURL)
 
@@ -105,10 +117,6 @@ func (db *DataBase) GetShortURLBatch(ctx context.Context, reqSlice []models.ReqA
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin batch: %w", err)
 	}
-
-	insertSchemaURLs :=
-		`INSERT INTO urls (short_url, full_url)
-			VALUES ($1, $2);`
 
 	resSlice := make([]models.ResAPIBatch, 0, len(reqSlice))
 	for _, req := range reqSlice {
