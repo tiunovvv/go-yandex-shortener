@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"time"
 
 	myErrors "github.com/tiunovvv/go-yandex-shortener/internal/errors"
@@ -22,29 +23,35 @@ func NewShortener(store storage.Store) *Shortener {
 }
 
 func (sh *Shortener) GetShortURL(ctx context.Context, fullURL string) (string, error) {
-	if shortURL := sh.store.GetShortURL(ctx, fullURL); shortURL != "" {
-		return shortURL, myErrors.ErrURLAlreadySaved
-	}
-	shortURL := sh.store.GenerateShortURL()
+	shortURL := sh.GenerateShortURL()
 	for errors.Is(sh.store.SaveURL(ctx, shortURL, fullURL), myErrors.ErrKeyAlreadyExists) {
-		shortURL = sh.store.GenerateShortURL()
+		shortURL = sh.GenerateShortURL()
 	}
 
 	return shortURL, nil
 }
 
-func (sh *Shortener) GetShortURLBatch(ctx context.Context, fullURL []models.ReqAPIBatch) ([]models.ResAPIBatch, error) {
+func (sh *Shortener) GetShortURLBatch(
+	ctx context.Context,
+	reqSlice []models.ReqAPIBatch) ([]models.ResAPIBatch, error) {
 	var cancelCtx context.CancelFunc
 	const seconds = time.Second * 10
 	ctx, cancelCtx = context.WithTimeout(ctx, seconds)
 	defer cancelCtx()
 
-	res, err := sh.store.GetShortURLBatch(ctx, fullURL)
-	if err != nil {
+	urls := make(map[string]string)
+	resSlice := make([]models.ResAPIBatch, 0, len(reqSlice))
+	for _, req := range reqSlice {
+		res := models.ResAPIBatch{ID: req.ID, ShortURL: sh.GenerateShortURL()}
+		resSlice = append(resSlice, res)
+		urls[res.ShortURL] = req.FullURL
+	}
+
+	if err := sh.store.SaveURLBatch(ctx, urls); err != nil {
 		return nil, fmt.Errorf("failed to get short URLs: %w", err)
 	}
 
-	return res, nil
+	return resSlice, nil
 }
 
 func (sh *Shortener) GetFullURL(ctx context.Context, shortURL string) (string, error) {
@@ -64,4 +71,17 @@ func (sh *Shortener) CheckConnect(ctx context.Context) error {
 		return fmt.Errorf("failed to connect store: %w", err)
 	}
 	return nil
+}
+
+func (sh *Shortener) GenerateShortURL() string {
+	rand.New(rand.NewSource(time.Now().UnixNano()))
+	const length = 8
+	str := make([]byte, length)
+
+	charset := "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+	for i := range str {
+		str[i] = charset[rand.Intn(len(charset))]
+	}
+
+	return string(str)
 }

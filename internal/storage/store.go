@@ -4,23 +4,21 @@ import (
 	"context"
 
 	"github.com/tiunovvv/go-yandex-shortener/internal/config"
-	"github.com/tiunovvv/go-yandex-shortener/internal/models"
 	"go.uber.org/zap"
 )
 
 type Store interface {
 	GetShortURL(ctx context.Context, fullURL string) string
 	GetFullURL(ctx context.Context, shortURL string) (string, error)
-	GetShortURLBatch(ctx context.Context, fullURL []models.ReqAPIBatch) ([]models.ResAPIBatch, error)
 	SaveURL(ctx context.Context, shortURL string, fullURL string) error
+	SaveURLBatch(ctx context.Context, urls map[string]string) error
 	GetPing(ctx context.Context) error
 	Close() error
-	GenerateShortURL() string
 }
 
 func NewStore(ctx context.Context, config *config.Config, logger *zap.Logger) (Store, error) {
 	if len(config.DSN) != 0 {
-		store, err := NewDatabaseStore(ctx, config.DSN, logger)
+		store, err := NewDB(ctx, config.DSN, logger)
 		if err == nil {
 			return store, nil
 		}
@@ -28,12 +26,12 @@ func NewStore(ctx context.Context, config *config.Config, logger *zap.Logger) (S
 	}
 
 	if len(config.FilePath) != 0 {
-		store, err := NewFileStore(config.FilePath, logger)
+		store, err := NewFile(config.FilePath, logger)
 		if err == nil {
 			return store, nil
 		}
 		logger.Sugar().Errorf("failed to create storage using File: %w", err)
 	}
 
-	return NewInMemoryStore(), nil
+	return NewMemory(), nil
 }
