@@ -40,7 +40,7 @@ func NewServer(ctx context.Context) (*Server, error) {
 	errorLog := zap.NewStdLog(logger)
 	const (
 		bytes   = 20
-		seconds = 10 * time.Second
+		seconds = 5 * time.Second
 	)
 	s := http.Server{
 		Addr:           config.ServerAddress,

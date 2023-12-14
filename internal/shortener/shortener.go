@@ -26,9 +26,9 @@ func (sh *Shortener) GetShortURL(ctx context.Context, fullURL string) (string, e
 	if shortURL := sh.store.GetShortURL(ctx, fullURL); len(shortURL) != 0 {
 		return shortURL, myErrors.ErrURLAlreadySaved
 	}
-	shortURL := sh.GenerateShortURL()
+	shortURL := sh.generateShortURL()
 	for errors.Is(sh.store.SaveURL(ctx, shortURL, fullURL), myErrors.ErrKeyAlreadyExists) {
-		shortURL = sh.GenerateShortURL()
+		shortURL = sh.generateShortURL()
 	}
 
 	return shortURL, nil
@@ -37,15 +37,10 @@ func (sh *Shortener) GetShortURL(ctx context.Context, fullURL string) (string, e
 func (sh *Shortener) GetShortURLBatch(
 	ctx context.Context,
 	reqSlice []models.ReqAPIBatch) ([]models.ResAPIBatch, error) {
-	var cancelCtx context.CancelFunc
-	const seconds = time.Second * 10
-	ctx, cancelCtx = context.WithTimeout(ctx, seconds)
-	defer cancelCtx()
-
 	urls := make(map[string]string)
 	resSlice := make([]models.ResAPIBatch, 0, len(reqSlice))
 	for _, req := range reqSlice {
-		res := models.ResAPIBatch{ID: req.ID, ShortURL: sh.GenerateShortURL()}
+		res := models.ResAPIBatch{ID: req.ID, ShortURL: sh.generateShortURL()}
 		resSlice = append(resSlice, res)
 		urls[res.ShortURL] = req.FullURL
 	}
@@ -58,10 +53,6 @@ func (sh *Shortener) GetShortURLBatch(
 }
 
 func (sh *Shortener) GetFullURL(ctx context.Context, shortURL string) (string, error) {
-	var cancelCtx context.CancelFunc
-	const seconds = time.Second * 10
-	ctx, cancelCtx = context.WithTimeout(ctx, seconds)
-	defer cancelCtx()
 	fullURL, err := sh.store.GetFullURL(ctx, shortURL)
 	if err != nil {
 		return "", fmt.Errorf("failed to get fullURL from filestore: %w", err)
@@ -76,7 +67,7 @@ func (sh *Shortener) CheckConnect(ctx context.Context) error {
 	return nil
 }
 
-func (sh *Shortener) GenerateShortURL() string {
+func (sh *Shortener) generateShortURL() string {
 	rand.New(rand.NewSource(time.Now().UnixNano()))
 	const length = 8
 	str := make([]byte, length)
