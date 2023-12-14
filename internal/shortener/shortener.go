@@ -23,6 +23,9 @@ func NewShortener(store storage.Store) *Shortener {
 }
 
 func (sh *Shortener) GetShortURL(ctx context.Context, fullURL string) (string, error) {
+	if shortURL := sh.store.GetShortURL(ctx, fullURL); len(shortURL) != 0 {
+		return shortURL, myErrors.ErrURLAlreadySaved
+	}
 	shortURL := sh.GenerateShortURL()
 	for errors.Is(sh.store.SaveURL(ctx, shortURL, fullURL), myErrors.ErrKeyAlreadyExists) {
 		shortURL = sh.GenerateShortURL()
