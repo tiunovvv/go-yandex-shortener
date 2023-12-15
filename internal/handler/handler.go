@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -35,19 +34,17 @@ func NewHandler(config *config.Config, shortener *shortener.Shortener, logger *z
 }
 
 func (h *Handler) InitRoutes() *gin.Engine {
-	const (
-		timeOutMsg   = "timeout error"
-		seconds      = 2 * time.Second
-		secondsBatch = 5 * time.Second
-	)
+	const seconds = 5 * time.Second
+
 	router := gin.New()
 	router.Use(middleware.GinGzip(h.logger))
 	router.Use(middleware.GinLogger(h.logger))
-	router.POST("/", h.timeoutHandler(seconds, timeOutMsg), h.PostHandler)
-	router.POST("/api/shorten", h.timeoutHandler(seconds, timeOutMsg), h.PostAPIHandler)
-	router.POST("/api/shorten/batch", h.timeoutHandler(secondsBatch, "timeout error batch"), h.PostAPIBatch)
-	router.GET("/:id", h.timeoutHandler(seconds, timeOutMsg), h.GetHandler)
-	router.GET("/ping", h.timeoutHandler(seconds, timeOutMsg), h.GetPing)
+	router.Use(middleware.GinTimeOut(seconds, "timeout error"))
+	router.POST("/", h.PostHandler)
+	router.POST("/api/shorten", h.PostAPIHandler)
+	router.POST("/api/shorten/batch", h.PostAPIBatch)
+	router.GET("/:id", h.GetHandler)
+	router.GET("/ping", h.GetPing)
 	return router
 }
 
@@ -164,24 +161,4 @@ func (h *Handler) PostAPIBatch(c *gin.Context) {
 	}
 
 	c.AbortWithStatusJSON(http.StatusCreated, shortURLSlice)
-}
-
-func (h *Handler) timeoutHandler(dt time.Duration, msg string) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		ctx, cancel := context.WithTimeout(c.Request.Context(), dt)
-		defer cancel()
-		done := make(chan bool, 1)
-
-		go func() {
-			c.Next()
-			done <- true
-		}()
-
-		select {
-		case <-done:
-		case <-ctx.Done():
-			c.String(http.StatusGatewayTimeout, msg)
-			c.Abort()
-		}
-	}
 }

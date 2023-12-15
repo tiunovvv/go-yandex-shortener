@@ -26,9 +26,9 @@ func (sh *Shortener) GetShortURL(ctx context.Context, fullURL string) (string, e
 	if shortURL := sh.store.GetShortURL(ctx, fullURL); len(shortURL) != 0 {
 		return shortURL, myErrors.ErrURLAlreadySaved
 	}
-	shortURL := sh.generateShortURL()
+	shortURL := generateShortURL()
 	for errors.Is(sh.store.SaveURL(ctx, shortURL, fullURL), myErrors.ErrKeyAlreadyExists) {
-		shortURL = sh.generateShortURL()
+		shortURL = generateShortURL()
 	}
 
 	return shortURL, nil
@@ -40,7 +40,7 @@ func (sh *Shortener) GetShortURLBatch(
 	urls := make(map[string]string)
 	resSlice := make([]models.ResAPIBatch, 0, len(reqSlice))
 	for _, req := range reqSlice {
-		res := models.ResAPIBatch{ID: req.ID, ShortURL: sh.generateShortURL()}
+		res := models.ResAPIBatch{ID: req.ID, ShortURL: generateShortURL()}
 		resSlice = append(resSlice, res)
 		urls[res.ShortURL] = req.FullURL
 	}
@@ -67,7 +67,7 @@ func (sh *Shortener) CheckConnect(ctx context.Context) error {
 	return nil
 }
 
-func (sh *Shortener) generateShortURL() string {
+func generateShortURL() string {
 	rand.New(rand.NewSource(time.Now().UnixNano()))
 	const length = 8
 	str := make([]byte, length)
