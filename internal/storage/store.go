@@ -10,8 +10,9 @@ import (
 type Store interface {
 	GetShortURL(ctx context.Context, fullURL string) string
 	GetFullURL(ctx context.Context, shortURL string) (string, error)
-	SaveURL(ctx context.Context, shortURL string, fullURL string) error
-	SaveURLBatch(ctx context.Context, urls map[string]string) error
+	GetURLByUserID(ctx context.Context, userID string) map[string]string
+	SaveURL(ctx context.Context, shortURL string, fullURL string, userID string) error
+	SaveURLBatch(ctx context.Context, urls map[string]string, userID string) error
 	GetPing(ctx context.Context) error
 	Close() error
 }

@@ -24,7 +24,7 @@ type File struct {
 }
 
 func NewFile(filePath string, logger *zap.Logger) (Store, error) {
-	memory := &Memory{urls: make(map[string]string)}
+	memory := &Memory{urls: make(map[string]URLInfo)}
 	const perm = 0666
 
 	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_RDWR|os.O_APPEND, perm)
@@ -41,17 +41,17 @@ func NewFile(filePath string, logger *zap.Logger) (Store, error) {
 func (f *File) loadURLs() error {
 	scanner := bufio.NewScanner(f.file)
 
-	urls := make(map[string]string)
+	urls := make(map[string]URLInfo)
 	for scanner.Scan() {
 		urlsJSON := URLsJSON{}
 		err := json.Unmarshal(scanner.Bytes(), &urlsJSON)
 		if err != nil {
 			return fmt.Errorf("failed to unmarshall temp file %w", err)
 		}
-		urls[urlsJSON.ShortURL] = urlsJSON.OriginalURL
+		urls[urlsJSON.ShortURL] = URLInfo{fullURL: urlsJSON.OriginalURL}
 	}
 	for k, v := range urls {
-		if err := f.memory.SaveURL(context.Background(), k, v); err != nil {
+		if err := f.memory.SaveURL(context.Background(), k, v.fullURL, v.userID); err != nil {
 			return fmt.Errorf("failed to save in local memory %w", err)
 		}
 	}
@@ -59,8 +59,8 @@ func (f *File) loadURLs() error {
 	return nil
 }
 
-func (f *File) SaveURL(ctx context.Context, shortURL string, fullURL string) error {
-	if err := f.memory.SaveURL(ctx, shortURL, fullURL); err != nil {
+func (f *File) SaveURL(ctx context.Context, shortURL string, fullURL string, userID string) error {
+	if err := f.memory.SaveURL(ctx, shortURL, fullURL, userID); err != nil {
 		return fmt.Errorf("failed to save in local memory %w", err)
 	}
 
@@ -77,8 +77,8 @@ func (f *File) GetShortURL(ctx context.Context, fullURL string) string {
 	return f.memory.GetShortURL(ctx, fullURL)
 }
 
-func (f *File) SaveURLBatch(ctx context.Context, urls map[string]string) error {
-	if err := f.memory.SaveURLBatch(ctx, urls); err != nil {
+func (f *File) SaveURLBatch(ctx context.Context, urls map[string]string, userID string) error {
+	if err := f.memory.SaveURLBatch(ctx, urls, userID); err != nil {
 		return fmt.Errorf("failed to save URL slice %w", err)
 	}
 
@@ -86,6 +86,10 @@ func (f *File) SaveURLBatch(ctx context.Context, urls map[string]string) error {
 		f.writeURLInFile(k, v)
 	}
 
+	return nil
+}
+
+func (f *File) GetURLByUserID(ctx context.Context, userID string) map[string]string {
 	return nil
 }
 

@@ -22,12 +22,12 @@ func NewShortener(store storage.Store) *Shortener {
 	}
 }
 
-func (sh *Shortener) GetShortURL(ctx context.Context, fullURL string) (string, error) {
+func (sh *Shortener) GetShortURL(ctx context.Context, fullURL string, userID string) (string, error) {
 	if shortURL := sh.store.GetShortURL(ctx, fullURL); len(shortURL) != 0 {
 		return shortURL, myErrors.ErrURLAlreadySaved
 	}
 	shortURL := generateShortURL()
-	for errors.Is(sh.store.SaveURL(ctx, shortURL, fullURL), myErrors.ErrKeyAlreadyExists) {
+	for errors.Is(sh.store.SaveURL(ctx, shortURL, fullURL, userID), myErrors.ErrKeyAlreadyExists) {
 		shortURL = generateShortURL()
 	}
 
@@ -36,7 +36,8 @@ func (sh *Shortener) GetShortURL(ctx context.Context, fullURL string) (string, e
 
 func (sh *Shortener) GetShortURLBatch(
 	ctx context.Context,
-	reqSlice []models.ReqAPIBatch) ([]models.ResAPIBatch, error) {
+	reqSlice []models.ReqAPIBatch,
+	userID string) ([]models.ResAPIBatch, error) {
 	urls := make(map[string]string)
 	resSlice := make([]models.ResAPIBatch, 0, len(reqSlice))
 	for _, req := range reqSlice {
@@ -45,7 +46,7 @@ func (sh *Shortener) GetShortURLBatch(
 		urls[res.ShortURL] = req.FullURL
 	}
 
-	if err := sh.store.SaveURLBatch(ctx, urls); err != nil {
+	if err := sh.store.SaveURLBatch(ctx, urls, userID); err != nil {
 		return nil, fmt.Errorf("failed to get short URLs: %w", err)
 	}
 
@@ -58,6 +59,16 @@ func (sh *Shortener) GetFullURL(ctx context.Context, shortURL string) (string, e
 		return "", fmt.Errorf("failed to get fullURL from filestore: %w", err)
 	}
 	return fullURL, nil
+}
+
+func (sh *Shortener) GetURLByUserID(ctx context.Context, userID string) []models.UsersURLs {
+	urls := sh.store.GetURLByUserID(ctx, userID)
+	userURLs := make([]models.UsersURLs, 0, len(urls))
+	for k, v := range urls {
+		userURL := models.UsersURLs{ShortURL: k, OriginalURL: v}
+		userURLs = append(userURLs, userURL)
+	}
+	return userURLs
 }
 
 func (sh *Shortener) CheckConnect(ctx context.Context) error {

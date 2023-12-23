@@ -179,7 +179,7 @@ func TestGetHandler(t *testing.T) {
 			const seconds = 10 * time.Second
 			ctx, cancelCtx := context.WithTimeout(context.TODO(), seconds)
 			defer cancelCtx()
-			if store.SaveURL(ctx, tt.mapKey, tt.mapValue) != nil {
+			if store.SaveURL(ctx, tt.mapKey, tt.mapValue, "") != nil {
 				log.Fatal("failed to save URL")
 			}
 			shortener := shortener.NewShortener(store)

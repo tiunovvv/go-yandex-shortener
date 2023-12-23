@@ -14,7 +14,7 @@ import (
 	"go.uber.org/zap"
 )
 
-const insertSchemaURLs = `INSERT INTO urls (short_url, full_url) VALUES ($1, $2);`
+const insertSchemaURLs = `INSERT INTO urls (short_url, full_url, user_id) VALUES ($1, $2, $3);`
 
 type DB struct {
 	pool   *pgxpool.Pool
@@ -73,8 +73,8 @@ func (db *DB) GetPing(ctx context.Context) error {
 	return nil
 }
 
-func (db *DB) SaveURL(ctx context.Context, shortURL string, fullURL string) error {
-	_, err := db.pool.Exec(ctx, insertSchemaURLs, []byte(shortURL), fullURL)
+func (db *DB) SaveURL(ctx context.Context, shortURL string, fullURL string, userID string) error {
+	_, err := db.pool.Exec(ctx, insertSchemaURLs, []byte(shortURL), fullURL, userID)
 
 	if err != nil {
 		return fmt.Errorf("failed to insert row: %w", err)
@@ -109,14 +109,14 @@ func (db *DB) GetShortURL(ctx context.Context, fullURL string) string {
 	return shortURL
 }
 
-func (db *DB) SaveURLBatch(ctx context.Context, urls map[string]string) error {
+func (db *DB) SaveURLBatch(ctx context.Context, urls map[string]string, userID string) error {
 	tx, err := db.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
 	for k, v := range urls {
-		if _, err = tx.Exec(ctx, insertSchemaURLs, []byte(k), v); err != nil {
+		if _, err = tx.Exec(ctx, insertSchemaURLs, []byte(k), v, userID); err != nil {
 			if tx.Rollback(ctx) != nil {
 				return fmt.Errorf("failed to rollback: %w", err)
 			}
@@ -128,6 +128,28 @@ func (db *DB) SaveURLBatch(ctx context.Context, urls map[string]string) error {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 	return nil
+}
+
+func (db *DB) GetURLByUserID(ctx context.Context, userID string) map[string]string {
+	const selectSchemaURLsByUserID = `SELECT short_url, full_url FROM urls WHERE user_id = $1;`
+
+	rows, err := db.pool.Query(ctx, selectSchemaURLsByUserID, userID)
+	if err != nil {
+		db.logger.Sugar().Errorf("failed to select by user_id: %w", err)
+		return nil
+	}
+
+	urls := make(map[string]string)
+	for rows.Next() {
+		var shortURL, fullURL string
+		err := rows.Scan(&shortURL, &fullURL)
+		if err != nil {
+			db.logger.Sugar().Errorf("failed to get rows from select by user_id: %w", err)
+		}
+		urls[shortURL] = fullURL
+	}
+
+	return urls
 }
 
 func (db *DB) Close() error {

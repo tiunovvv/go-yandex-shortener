@@ -9,7 +9,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/securecookie"
 	"github.com/tiunovvv/go-yandex-shortener/internal/config"
 	"github.com/tiunovvv/go-yandex-shortener/internal/middleware"
 	"github.com/tiunovvv/go-yandex-shortener/internal/models"
@@ -18,6 +21,8 @@ import (
 
 	myErrors "github.com/tiunovvv/go-yandex-shortener/internal/errors"
 )
+
+const userIDKey = "user_id"
 
 type Handler struct {
 	config    *config.Config
@@ -34,15 +39,23 @@ func NewHandler(config *config.Config, shortener *shortener.Shortener, logger *z
 }
 
 func (h *Handler) InitRoutes() *gin.Engine {
-	const seconds = 5 * time.Second
-
 	router := gin.New()
+
 	router.Use(middleware.GinGzip(h.logger))
 	router.Use(middleware.GinLogger(h.logger))
+
+	const seconds = 5 * time.Second
 	router.Use(middleware.GinTimeOut(seconds, "timeout error"))
+
+	const keyLength = 32
+	var cookieStore = cookie.NewStore(securecookie.GenerateRandomKey(keyLength))
+	router.Use(sessions.Sessions("mysession", cookieStore))
+	router.Use(middleware.SetCookie(h.logger))
+
 	router.POST("/", h.PostHandler)
-	router.POST("/api/shorten", h.PostAPIHandler)
+	router.POST("/api/shorten", h.PostAPI)
 	router.POST("/api/shorten/batch", h.PostAPIBatch)
+	router.POST("/api/user/urls", h.PostAPIUserURLs)
 	router.GET("/:id", h.GetHandler)
 	router.GET("/ping", h.GetPing)
 	return router
@@ -68,7 +81,13 @@ func (h *Handler) PostHandler(c *gin.Context) {
 		return
 	}
 
-	shortURL, err := h.shortener.GetShortURL(c, fullURL)
+	userID, exists := c.Get(userIDKey)
+	if !exists {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	shortURL, err := h.shortener.GetShortURL(c, fullURL, fmt.Sprintf("%v", userID))
 	fullShortURL := fmt.Sprintf("%s%s%s", h.config.BaseURL, c.Request.URL.RequestURI(), shortURL)
 
 	if errors.Is(err, myErrors.ErrURLAlreadySaved) {
@@ -111,7 +130,7 @@ func (h *Handler) GetPing(c *gin.Context) {
 	c.AbortWithStatus(http.StatusOK)
 }
 
-func (h *Handler) PostAPIHandler(c *gin.Context) {
+func (h *Handler) PostAPI(c *gin.Context) {
 	var req models.ReqAPI
 	if err := c.ShouldBindJSON(&req); err != nil {
 		h.logger.Sugar().Error("failed to decode request JSON body: %w", err)
@@ -127,7 +146,13 @@ func (h *Handler) PostAPIHandler(c *gin.Context) {
 		return
 	}
 
-	shortURL, err := h.shortener.GetShortURL(c, fullURL)
+	userID, exists := c.Get(userIDKey)
+	if !exists {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	shortURL, err := h.shortener.GetShortURL(c, fullURL, fmt.Sprintf("%v", userID))
 	fullShortURL := fmt.Sprintf("%s/%s", h.config.BaseURL, shortURL)
 	resp := models.ResAPI{Result: fullShortURL}
 
@@ -148,7 +173,13 @@ func (h *Handler) PostAPIBatch(c *gin.Context) {
 		return
 	}
 
-	shortURLSlice, err := h.shortener.GetShortURLBatch(c, fullURLSlice)
+	userID, exists := c.Get(userIDKey)
+	if !exists {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	shortURLSlice, err := h.shortener.GetShortURLBatch(c, fullURLSlice, fmt.Sprintf("%v", userID))
 
 	if err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
@@ -161,4 +192,18 @@ func (h *Handler) PostAPIBatch(c *gin.Context) {
 	}
 
 	c.AbortWithStatusJSON(http.StatusCreated, shortURLSlice)
+}
+
+func (h *Handler) PostAPIUserURLs(c *gin.Context) {
+	userID, exists := c.Get(userIDKey)
+	if !exists {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	usersURLs := h.shortener.GetURLByUserID(c, fmt.Sprintf("%v", userID))
+	if len(usersURLs) == 0 {
+		c.AbortWithStatus(http.StatusNoContent)
+	}
+	c.AbortWithStatusJSON(http.StatusCreated, usersURLs)
 }
