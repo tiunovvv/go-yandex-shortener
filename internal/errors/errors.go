@@ -2,4 +2,7 @@ package errors
 
 import "errors"
 
-var ErrKeyAlreadyExists = errors.New("key already exists")
+var (
+	ErrKeyAlreadyExists = errors.New("key already exists")
+	ErrURLAlreadySaved  = errors.New("full URL already saved")
+)
