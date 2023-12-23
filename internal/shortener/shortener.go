@@ -61,11 +61,11 @@ func (sh *Shortener) GetFullURL(ctx context.Context, shortURL string) (string, e
 	return fullURL, nil
 }
 
-func (sh *Shortener) GetURLByUserID(ctx context.Context, userID string) []models.UsersURLs {
+func (sh *Shortener) GetURLByUserID(ctx context.Context, baseURL string, userID string) []models.UsersURLs {
 	urls := sh.store.GetURLByUserID(ctx, userID)
 	userURLs := make([]models.UsersURLs, 0, len(urls))
 	for k, v := range urls {
-		userURL := models.UsersURLs{ShortURL: k, OriginalURL: v}
+		userURL := models.UsersURLs{ShortURL: fmt.Sprintf("%s/%s", baseURL, k), OriginalURL: v}
 		userURLs = append(userURLs, userURL)
 	}
 	return userURLs

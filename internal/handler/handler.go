@@ -55,7 +55,7 @@ func (h *Handler) InitRoutes() *gin.Engine {
 	router.POST("/", h.PostHandler)
 	router.POST("/api/shorten", h.PostAPI)
 	router.POST("/api/shorten/batch", h.PostAPIBatch)
-	router.POST("/api/user/urls", h.PostAPIUserURLs)
+	router.GET("/api/user/urls", h.PostAPIUserURLs)
 	router.GET("/:id", h.GetHandler)
 	router.GET("/ping", h.GetPing)
 	return router
@@ -201,9 +201,12 @@ func (h *Handler) PostAPIUserURLs(c *gin.Context) {
 		return
 	}
 
-	usersURLs := h.shortener.GetURLByUserID(c, fmt.Sprintf("%v", userID))
+	usersURLs := h.shortener.GetURLByUserID(c, h.config.BaseURL, fmt.Sprintf("%v", userID))
+
 	if len(usersURLs) == 0 {
-		c.AbortWithStatus(http.StatusNoContent)
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
 	}
-	c.AbortWithStatusJSON(http.StatusCreated, usersURLs)
+
+	c.AbortWithStatusJSON(http.StatusOK, usersURLs)
 }
