@@ -14,7 +14,7 @@ import (
 	"go.uber.org/zap"
 )
 
-const insertSchemaURLs = `INSERT INTO urls (short_url, full_url, user_id) VALUES ($1, $2, $3);`
+const insertSchemaURLs = `INSERT INTO urls (short_url, full_url, user_id, deleted_flag) VALUES ($1, $2, $3, $4);`
 
 type DB struct {
 	pool   *pgxpool.Pool
@@ -74,7 +74,7 @@ func (db *DB) GetPing(ctx context.Context) error {
 }
 
 func (db *DB) SaveURL(ctx context.Context, shortURL string, fullURL string, userID string) error {
-	_, err := db.pool.Exec(ctx, insertSchemaURLs, []byte(shortURL), fullURL, userID)
+	_, err := db.pool.Exec(ctx, insertSchemaURLs, []byte(shortURL), fullURL, userID, false)
 
 	if err != nil {
 		return fmt.Errorf("failed to insert row: %w", err)
@@ -83,17 +83,21 @@ func (db *DB) SaveURL(ctx context.Context, shortURL string, fullURL string, user
 	return nil
 }
 
-func (db *DB) GetFullURL(ctx context.Context, shortURL string) (string, error) {
-	const selectSchemaFullURL = `SELECT full_url FROM urls WHERE short_url = $1;`
+func (db *DB) GetFullURL(ctx context.Context, shortURL string) (string, bool, error) {
+	const selectSchemaFullURL = `SELECT full_url, deleted_flag FROM urls WHERE short_url = $1;`
 
 	row := db.pool.QueryRow(ctx, selectSchemaFullURL, shortURL)
 
-	var fullURL string
-	if err := row.Scan(&fullURL); err != nil {
-		return "", fmt.Errorf("failed to find shortURL=%s in database: %w", shortURL, err)
+	var (
+		fullURL     string
+		deletedFlag bool
+	)
+
+	if err := row.Scan(&fullURL, &deletedFlag); err != nil {
+		return "", false, fmt.Errorf("failed to find shortURL=%s in database: %w", shortURL, err)
 	}
 
-	return fullURL, nil
+	return fullURL, deletedFlag, nil
 }
 
 func (db *DB) GetShortURL(ctx context.Context, fullURL string) string {
@@ -116,7 +120,7 @@ func (db *DB) SaveURLBatch(ctx context.Context, urls map[string]string, userID s
 	}
 
 	for k, v := range urls {
-		if _, err = tx.Exec(ctx, insertSchemaURLs, []byte(k), v, userID); err != nil {
+		if _, err = tx.Exec(ctx, insertSchemaURLs, []byte(k), v, userID, false); err != nil {
 			if tx.Rollback(ctx) != nil {
 				return fmt.Errorf("failed to rollback: %w", err)
 			}
@@ -150,6 +154,16 @@ func (db *DB) GetURLByUserID(ctx context.Context, userID string) map[string]stri
 	}
 
 	return urls
+}
+
+func (db *DB) SetDeletedFlag(ctx context.Context, userID string, shortURL string) error {
+	const updateSchemaDeletedFlag = `UPDATE urls SET deleted_flag = $1 WHERE short_url = $2 AND user_id = $3;`
+
+	_, err := db.pool.Exec(ctx, updateSchemaDeletedFlag, true, shortURL, userID)
+	if err != nil {
+		return fmt.Errorf("failed to update deleted flag for short_url=%s: %w", shortURL, err)
+	}
+	return nil
 }
 
 func (db *DB) Close() error {

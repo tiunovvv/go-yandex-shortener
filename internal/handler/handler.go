@@ -58,6 +58,7 @@ func (h *Handler) InitRoutes() *gin.Engine {
 	router.GET("/api/user/urls", h.PostAPIUserURLs)
 	router.GET("/:id", h.GetHandler)
 	router.GET("/ping", h.GetPing)
+	router.DELETE("/api/user/urls", h.SetDeletedFlag)
 	return router
 }
 
@@ -112,10 +113,15 @@ func (h *Handler) GetHandler(c *gin.Context) {
 		return
 	}
 
-	fullURL, err := h.shortener.GetFullURL(c, shortURL)
+	fullURL, deletedFlag, err := h.shortener.GetFullURL(c, shortURL)
 
 	if err != nil {
 		newErrorResponce(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if deletedFlag {
+		c.AbortWithStatus(http.StatusGone)
 		return
 	}
 
@@ -209,4 +215,23 @@ func (h *Handler) PostAPIUserURLs(c *gin.Context) {
 	}
 
 	c.AbortWithStatusJSON(http.StatusOK, usersURLs)
+}
+
+func (h *Handler) SetDeletedFlag(c *gin.Context) {
+	userID, exists := c.Get(userIDKey)
+	if !exists {
+		c.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	var shortURLSlice []string
+
+	if err := c.ShouldBindJSON(&shortURLSlice); err != nil {
+		h.logger.Sugar().Error("failed to bind request JSON body: %w", err)
+		c.AbortWithStatus(http.StatusInternalServerError)
+	}
+
+	h.shortener.SetDeletedFlag(c, fmt.Sprintf("%v", userID), shortURLSlice)
+
+	c.AbortWithStatus(http.StatusAccepted)
 }

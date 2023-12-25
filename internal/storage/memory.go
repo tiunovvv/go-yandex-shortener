@@ -8,8 +8,9 @@ import (
 )
 
 type URLInfo struct {
-	fullURL string
-	userID  string
+	fullURL     string
+	userID      string
+	DeletedFlag bool
 }
 type Memory struct {
 	urls map[string]URLInfo
@@ -28,18 +29,18 @@ func (i *Memory) GetShortURL(ctx context.Context, fullURL string) string {
 	return ""
 }
 
-func (i *Memory) GetFullURL(ctx context.Context, shortURL string) (string, error) {
+func (i *Memory) GetFullURL(ctx context.Context, shortURL string) (string, bool, error) {
 	if urlInfo, found := i.urls[shortURL]; found {
-		return urlInfo.fullURL, nil
+		return urlInfo.fullURL, urlInfo.DeletedFlag, nil
 	}
-	return "", fmt.Errorf("URL `%s` not found", shortURL)
+	return "", false, fmt.Errorf("URL `%s` not found", shortURL)
 }
 
 func (i *Memory) SaveURL(ctx context.Context, shortURL string, fullURL string, userID string) error {
 	if _, exists := i.urls[shortURL]; exists {
 		return fmt.Errorf("failed to save shortURL %s: %w", shortURL, myErrors.ErrKeyAlreadyExists)
 	}
-	i.urls[shortURL] = URLInfo{fullURL, userID}
+	i.urls[shortURL] = URLInfo{fullURL, userID, false}
 
 	return nil
 }
@@ -55,6 +56,27 @@ func (i *Memory) SaveURLBatch(ctx context.Context, urls map[string]string, userI
 }
 
 func (i *Memory) GetURLByUserID(ctx context.Context, userID string) map[string]string {
+	urls := make(map[string]string)
+	for key, value := range i.urls {
+		if value.userID == userID {
+			urls[key] = value.fullURL
+		}
+	}
+	return urls
+}
+
+func (i *Memory) SetDeletedFlag(ctx context.Context, userID string, shortURL string) error {
+	url, exists := i.urls[shortURL]
+
+	if !exists {
+		return fmt.Errorf("failed to update deleted flag for short_url=%s", shortURL)
+	}
+
+	if url.userID != userID {
+		return fmt.Errorf("failed to update deleted flag for short_url=%s, different userID ", shortURL)
+	}
+	url.DeletedFlag = true
+	i.urls[shortURL] = url
 	return nil
 }
 

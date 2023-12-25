@@ -69,7 +69,7 @@ func (f *File) SaveURL(ctx context.Context, shortURL string, fullURL string, use
 	return nil
 }
 
-func (f *File) GetFullURL(ctx context.Context, shortURL string) (string, error) {
+func (f *File) GetFullURL(ctx context.Context, shortURL string) (string, bool, error) {
 	return f.memory.GetFullURL(ctx, shortURL)
 }
 
@@ -90,7 +90,11 @@ func (f *File) SaveURLBatch(ctx context.Context, urls map[string]string, userID 
 }
 
 func (f *File) GetURLByUserID(ctx context.Context, userID string) map[string]string {
-	return nil
+	return f.memory.GetURLByUserID(ctx, userID)
+}
+
+func (f *File) SetDeletedFlag(ctx context.Context, userID string, shortURL string) error {
+	return f.memory.SetDeletedFlag(ctx, userID, shortURL)
 }
 
 func (f *File) GetPing(ctx context.Context) error {

@@ -34,7 +34,7 @@ func NewServer(ctx context.Context) (*Server, error) {
 		return nil, fmt.Errorf("failed to create store: %w", err)
 	}
 
-	shortener := shortener.NewShortener(store)
+	shortener := shortener.NewShortener(store, logger)
 	handler := handler.NewHandler(config, shortener, logger)
 
 	errorLog := zap.NewStdLog(logger)

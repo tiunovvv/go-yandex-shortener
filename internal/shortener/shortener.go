@@ -5,20 +5,24 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"sync"
 	"time"
 
 	myErrors "github.com/tiunovvv/go-yandex-shortener/internal/errors"
 	"github.com/tiunovvv/go-yandex-shortener/internal/models"
 	"github.com/tiunovvv/go-yandex-shortener/internal/storage"
+	"go.uber.org/zap"
 )
 
 type Shortener struct {
-	store storage.Store
+	store  storage.Store
+	logger *zap.Logger
 }
 
-func NewShortener(store storage.Store) *Shortener {
+func NewShortener(store storage.Store, logger *zap.Logger) *Shortener {
 	return &Shortener{
-		store: store,
+		store:  store,
+		logger: logger,
 	}
 }
 
@@ -53,12 +57,12 @@ func (sh *Shortener) GetShortURLBatch(
 	return resSlice, nil
 }
 
-func (sh *Shortener) GetFullURL(ctx context.Context, shortURL string) (string, error) {
-	fullURL, err := sh.store.GetFullURL(ctx, shortURL)
+func (sh *Shortener) GetFullURL(ctx context.Context, shortURL string) (string, bool, error) {
+	fullURL, deleteFlag, err := sh.store.GetFullURL(ctx, shortURL)
 	if err != nil {
-		return "", fmt.Errorf("failed to get fullURL from filestore: %w", err)
+		return "", false, fmt.Errorf("failed to get fullURL from filestore: %w", err)
 	}
-	return fullURL, nil
+	return fullURL, deleteFlag, nil
 }
 
 func (sh *Shortener) GetURLByUserID(ctx context.Context, baseURL string, userID string) []models.UsersURLs {
@@ -71,11 +75,42 @@ func (sh *Shortener) GetURLByUserID(ctx context.Context, baseURL string, userID 
 	return userURLs
 }
 
+func (sh *Shortener) SetDeletedFlag(ctx context.Context, userID string, shortURLSlice []string) {
+	deleteChan := make(chan string)
+	var wg sync.WaitGroup
+	numWorkers := 3
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go sh.deletedFlagWorker(ctx, userID, deleteChan, &wg)
+	}
+
+	for _, shortURL := range shortURLSlice {
+		deleteChan <- shortURL
+	}
+
+	close(deleteChan)
+	wg.Wait()
+}
+
 func (sh *Shortener) CheckConnect(ctx context.Context) error {
 	if err := sh.store.GetPing(ctx); err != nil {
 		return fmt.Errorf("failed to connect store: %w", err)
 	}
 	return nil
+}
+
+func (sh *Shortener) deletedFlagWorker(
+	ctx context.Context,
+	userID string,
+	deleteChan <-chan string,
+	wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	for shortURL := range deleteChan {
+		if err := sh.store.SetDeletedFlag(ctx, userID, shortURL); err != nil {
+			sh.logger.Sugar().Errorf("failed to set deleted flag: %w", err)
+		}
+	}
 }
 
 func generateShortURL() string {

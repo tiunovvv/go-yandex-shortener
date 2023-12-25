@@ -90,7 +90,7 @@ func TestPostHandler(t *testing.T) {
 				log.Fatalf("failed to create storage: %v", err)
 				return
 			}
-			shortener := shortener.NewShortener(store)
+			shortener := shortener.NewShortener(store, logger)
 			handler := NewHandler(config, shortener, logger)
 
 			router := handler.InitRoutes()
@@ -182,7 +182,7 @@ func TestGetHandler(t *testing.T) {
 			if store.SaveURL(ctx, tt.mapKey, tt.mapValue, "") != nil {
 				log.Fatal("failed to save URL")
 			}
-			shortener := shortener.NewShortener(store)
+			shortener := shortener.NewShortener(store, logger)
 			handler := NewHandler(config, shortener, logger)
 
 			router := handler.InitRoutes()
@@ -278,7 +278,7 @@ func TestPostApiHandler(t *testing.T) {
 				log.Fatalf("failed to create storage: %v", err)
 				return
 			}
-			shortener := shortener.NewShortener(store)
+			shortener := shortener.NewShortener(store, logger)
 			handler := NewHandler(config, shortener, logger)
 
 			router := handler.InitRoutes()
