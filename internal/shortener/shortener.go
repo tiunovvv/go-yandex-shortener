@@ -31,7 +31,7 @@ func (sh *Shortener) GetShortURL(ctx context.Context, fullURL string, userID str
 	err := sh.store.SaveURL(ctx, shortURL, fullURL, userID)
 	if errors.Is(err, myErrors.ErrURLAlreadySaved) {
 		shortURL := sh.store.GetShortURL(ctx, fullURL)
-		return shortURL, err
+		return shortURL, myErrors.ErrURLAlreadySaved
 	}
 
 	for errors.Is(err, myErrors.ErrKeyAlreadyExists) {

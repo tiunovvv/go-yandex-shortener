@@ -54,7 +54,9 @@ func NewServer(ctx context.Context) (*Server, error) {
 	return &Server{logger, store, &s}, nil
 }
 
-func (s *Server) Start() error {
+func (s *Server) Start(cancel context.CancelFunc) error {
+	defer cancel()
+
 	var err error
 	defer func() {
 		if er := s.logger.Sync(); er != nil {

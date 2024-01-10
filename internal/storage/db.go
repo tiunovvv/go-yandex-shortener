@@ -19,7 +19,10 @@ import (
 	myErrors "github.com/tiunovvv/go-yandex-shortener/internal/errors"
 )
 
-const insertSchemaURLs = `INSERT INTO urls (short_url, full_url, user_id, deleted_flag) VALUES ($1, $2, $3, $4) INSERT ... ON CONFLICT;`
+const insertSchemaURLs = `
+	INSERT INTO urls (short_url, full_url, user_id, deleted_flag) 
+	VALUES ($1, $2, $3, $4) 
+	ON CONFLICT (full_url) DO NOTHING;`
 
 type DB struct {
 	pool   *pgxpool.Pool
@@ -82,10 +85,9 @@ func (db *DB) SaveURL(ctx context.Context, shortURL string, fullURL string, user
 	_, err := db.pool.Exec(ctx, insertSchemaURLs, []byte(shortURL), fullURL, userID, false)
 
 	if err != nil {
-		if pgErr, ok := err.(*pq.Error); ok {
-			if pgErr.Code == pgerrcode.UniqueViolation {
-				return myErrors.ErrURLAlreadySaved
-			}
+		var pgErr *pq.Error
+		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
+			return myErrors.ErrURLAlreadySaved
 		}
 
 		return fmt.Errorf("failed to insert row: %w", err)
