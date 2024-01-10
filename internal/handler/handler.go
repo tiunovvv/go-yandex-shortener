@@ -89,12 +89,18 @@ func (h *Handler) PostHandler(c *gin.Context) {
 	}
 
 	shortURL, err := h.shortener.GetShortURL(c, fullURL, fmt.Sprintf("%v", userID))
-	fullShortURL := fmt.Sprintf("%s%s%s", h.config.BaseURL, c.Request.URL.RequestURI(), shortURL)
 
 	if errors.Is(err, myErrors.ErrURLAlreadySaved) {
 		c.Status(http.StatusConflict)
 	} else {
 		c.Status(http.StatusCreated)
+	}
+
+	fullShortURL, err := url.JoinPath(h.config.BaseURL, c.Request.URL.RequestURI(), shortURL)
+	if err != nil {
+		c.AbortWithStatus(http.StatusInternalServerError)
+		h.logger.Sugar().Errorf("fialed to join path: %s %s %s", h.config.BaseURL, c.Request.URL.RequestURI(), shortURL)
+		return
 	}
 
 	if _, err := c.Writer.Write([]byte(fullShortURL)); c.Request.Body == nil && err != nil {
@@ -179,13 +185,21 @@ func (h *Handler) PostAPIBatch(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get(userIDKey)
+	userIDInterface, exists := c.Get(userIDKey)
 	if !exists {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 
-	shortURLSlice, err := h.shortener.GetShortURLBatch(c, fullURLSlice, fmt.Sprintf("%v", userID))
+	userID, ok := userIDInterface.(string)
+
+	if !ok {
+		c.AbortWithStatus(http.StatusInternalServerError)
+		h.logger.Sugar().Errorf("failed to get userID from %v", userIDInterface)
+		return
+	}
+
+	shortURLSlice, err := h.shortener.GetShortURLBatch(c, fullURLSlice, userID)
 
 	if err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
@@ -201,13 +215,21 @@ func (h *Handler) PostAPIBatch(c *gin.Context) {
 }
 
 func (h *Handler) PostAPIUserURLs(c *gin.Context) {
-	userID, exists := c.Get(userIDKey)
+	userIDInterface, exists := c.Get(userIDKey)
 	if !exists {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 
-	usersURLs := h.shortener.GetURLByUserID(c, h.config.BaseURL, fmt.Sprintf("%v", userID))
+	userID, ok := userIDInterface.(string)
+
+	if !ok {
+		c.AbortWithStatus(http.StatusInternalServerError)
+		h.logger.Sugar().Errorf("failed to get userID from %v", userIDInterface)
+		return
+	}
+
+	usersURLs := h.shortener.GetURLByUserID(c, h.config.BaseURL, userID)
 
 	if len(usersURLs) == 0 {
 		c.AbortWithStatus(http.StatusUnauthorized)

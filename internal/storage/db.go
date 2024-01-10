@@ -10,11 +10,16 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/lib/pq"
 	"go.uber.org/zap"
+
+	myErrors "github.com/tiunovvv/go-yandex-shortener/internal/errors"
 )
 
-const insertSchemaURLs = `INSERT INTO urls (short_url, full_url, user_id, deleted_flag) VALUES ($1, $2, $3, $4);`
+const insertSchemaURLs = `INSERT INTO urls (short_url, full_url, user_id, deleted_flag) VALUES ($1, $2, $3, $4) INSERT ... ON CONFLICT;`
 
 type DB struct {
 	pool   *pgxpool.Pool
@@ -77,6 +82,12 @@ func (db *DB) SaveURL(ctx context.Context, shortURL string, fullURL string, user
 	_, err := db.pool.Exec(ctx, insertSchemaURLs, []byte(shortURL), fullURL, userID, false)
 
 	if err != nil {
+		if pgErr, ok := err.(*pq.Error); ok {
+			if pgErr.Code == pgerrcode.UniqueViolation {
+				return myErrors.ErrURLAlreadySaved
+			}
+		}
+
 		return fmt.Errorf("failed to insert row: %w", err)
 	}
 
@@ -119,18 +130,27 @@ func (db *DB) SaveURLBatch(ctx context.Context, urls map[string]string, userID s
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
-	for k, v := range urls {
-		if _, err = tx.Exec(ctx, insertSchemaURLs, []byte(k), v, userID, false); err != nil {
-			if tx.Rollback(ctx) != nil {
-				return fmt.Errorf("failed to rollback: %w", err)
-			}
-			return fmt.Errorf("failed to insert row: %w", err)
+	defer func() {
+		if err := tx.Rollback(ctx); err != nil {
+			db.logger.Sugar().Errorf("failed to rollback: %w", err)
 		}
+	}()
+
+	batch := &pgx.Batch{}
+
+	for k, v := range urls {
+		batch.Queue(insertSchemaURLs, []byte(k), v, userID, false)
+	}
+
+	results := db.pool.SendBatch(ctx, batch)
+	if results == nil {
+		return fmt.Errorf("failed to send batch: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
+
 	return nil
 }
 
@@ -142,6 +162,8 @@ func (db *DB) GetURLByUserID(ctx context.Context, userID string) map[string]stri
 		db.logger.Sugar().Errorf("failed to select by user_id: %w", err)
 		return nil
 	}
+
+	defer rows.Close()
 
 	urls := make(map[string]string)
 	for rows.Next() {

@@ -27,12 +27,16 @@ func NewShortener(store storage.Store, logger *zap.Logger) *Shortener {
 }
 
 func (sh *Shortener) GetShortURL(ctx context.Context, fullURL string, userID string) (string, error) {
-	if shortURL := sh.store.GetShortURL(ctx, fullURL); len(shortURL) != 0 {
-		return shortURL, myErrors.ErrURLAlreadySaved
-	}
 	shortURL := generateShortURL()
-	for errors.Is(sh.store.SaveURL(ctx, shortURL, fullURL, userID), myErrors.ErrKeyAlreadyExists) {
+	err := sh.store.SaveURL(ctx, shortURL, fullURL, userID)
+	if errors.Is(err, myErrors.ErrURLAlreadySaved) {
+		shortURL := sh.store.GetShortURL(ctx, fullURL)
+		return shortURL, err
+	}
+
+	for errors.Is(err, myErrors.ErrKeyAlreadyExists) {
 		shortURL = generateShortURL()
+		err = sh.store.SaveURL(ctx, shortURL, fullURL, userID)
 	}
 
 	return shortURL, nil

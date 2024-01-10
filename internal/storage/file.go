@@ -4,10 +4,12 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
 
+	myErrors "github.com/tiunovvv/go-yandex-shortener/internal/errors"
 	"go.uber.org/zap"
 )
 
@@ -61,6 +63,9 @@ func (f *File) loadURLs() error {
 
 func (f *File) SaveURL(ctx context.Context, shortURL string, fullURL string, userID string) error {
 	if err := f.memory.SaveURL(ctx, shortURL, fullURL, userID); err != nil {
+		if errors.Is(err, myErrors.ErrURLAlreadySaved) {
+			return err
+		}
 		return fmt.Errorf("failed to save in local memory %w", err)
 	}
 

@@ -37,6 +37,12 @@ func (i *Memory) GetFullURL(ctx context.Context, shortURL string) (string, bool,
 }
 
 func (i *Memory) SaveURL(ctx context.Context, shortURL string, fullURL string, userID string) error {
+	for _, value := range i.urls {
+		if value.fullURL == fullURL {
+			return myErrors.ErrURLAlreadySaved
+		}
+	}
+
 	if _, exists := i.urls[shortURL]; exists {
 		return fmt.Errorf("failed to save shortURL %s: %w", shortURL, myErrors.ErrKeyAlreadyExists)
 	}

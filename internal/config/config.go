@@ -22,7 +22,7 @@ func NewConfig(logger *zap.Logger) *Config {
 	serverAddress := flag.String("a", "localhost:8080", "server start URL")
 	baseURL := flag.String("b", "http://localhost:8080", "base of short URL")
 	filePath := flag.String("f", "tmp/short-url-db.json", "file storage path")
-	dsn := flag.String("d", "postgres://postgres:postgres@localhost:5432/praktikum?sslmode=disable", "db adress")
+	dsn := flag.String("d", "", "db adress")
 	flag.Parse()
 
 	config := Config{

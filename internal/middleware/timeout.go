@@ -12,11 +12,11 @@ func GinTimeOut(dt time.Duration, msg string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), dt)
 		defer cancel()
-		done := make(chan bool, 1)
+		done := make(chan struct{})
 
 		go func() {
+			defer close(done)
 			c.Next()
-			done <- true
 		}()
 
 		select {
