@@ -12,17 +12,13 @@ import (
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/lib/pq"
-	"go.uber.org/zap"
-
 	myErrors "github.com/tiunovvv/go-yandex-shortener/internal/errors"
+	"go.uber.org/zap"
 )
 
-const insertSchemaURLs = `
-	INSERT INTO urls (short_url, full_url, user_id, deleted_flag) 
-	VALUES ($1, $2, $3, $4) 
-	ON CONFLICT (full_url) DO NOTHING;`
+const insertSchemaURLs = `INSERT INTO urls (short_url, full_url, user_id, deleted_flag) VALUES ($1, $2, $3, $4)`
 
 type DB struct {
 	pool   *pgxpool.Pool
@@ -82,15 +78,15 @@ func (db *DB) GetPing(ctx context.Context) error {
 }
 
 func (db *DB) SaveURL(ctx context.Context, shortURL string, fullURL string, userID string) error {
-	_, err := db.pool.Exec(ctx, insertSchemaURLs, []byte(shortURL), fullURL, userID, false)
+	var shortURLFromDB string
+
+	err := db.pool.QueryRow(ctx, insertSchemaURLs, []byte(shortURL), fullURL, userID, false).Scan(&shortURLFromDB)
 
 	if err != nil {
-		var pgErr *pq.Error
+		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
 			return myErrors.ErrURLAlreadySaved
 		}
-
-		return fmt.Errorf("failed to insert row: %w", err)
 	}
 
 	return nil
@@ -99,14 +95,12 @@ func (db *DB) SaveURL(ctx context.Context, shortURL string, fullURL string, user
 func (db *DB) GetFullURL(ctx context.Context, shortURL string) (string, bool, error) {
 	const selectSchemaFullURL = `SELECT full_url, deleted_flag FROM urls WHERE short_url = $1;`
 
-	row := db.pool.QueryRow(ctx, selectSchemaFullURL, shortURL)
-
 	var (
 		fullURL     string
 		deletedFlag bool
 	)
 
-	if err := row.Scan(&fullURL, &deletedFlag); err != nil {
+	if err := db.pool.QueryRow(ctx, selectSchemaFullURL, shortURL).Scan(&fullURL, &deletedFlag); err != nil {
 		return "", false, fmt.Errorf("failed to find shortURL=%s in database: %w", shortURL, err)
 	}
 
@@ -129,12 +123,13 @@ func (db *DB) GetShortURL(ctx context.Context, fullURL string) string {
 func (db *DB) SaveURLBatch(ctx context.Context, urls map[string]string, userID string) error {
 	tx, err := db.pool.Begin(ctx)
 	if err != nil {
+
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
 	defer func() {
 		if err := tx.Rollback(ctx); err != nil {
-			db.logger.Sugar().Errorf("failed to rollback: %w", err)
+			db.logger.Sugar().Infof("failed to rollback: %w", err)
 		}
 	}()
 
@@ -145,8 +140,10 @@ func (db *DB) SaveURLBatch(ctx context.Context, urls map[string]string, userID s
 	}
 
 	results := db.pool.SendBatch(ctx, batch)
+	defer results.Close()
+
 	if results == nil {
-		return fmt.Errorf("failed to send batch: %w", err)
+		return fmt.Errorf("failed to send batch")
 	}
 
 	if err := tx.Commit(ctx); err != nil {

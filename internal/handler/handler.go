@@ -82,13 +82,21 @@ func (h *Handler) PostHandler(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get(userIDKey)
+	userIDInterface, exists := c.Get(userIDKey)
 	if !exists {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 
-	shortURL, err := h.shortener.GetShortURL(c, fullURL, fmt.Sprintf("%v", userID))
+	userID, ok := userIDInterface.(string)
+
+	if !ok {
+		c.AbortWithStatus(http.StatusInternalServerError)
+		h.logger.Sugar().Errorf("failed to get userID from %v", userIDInterface)
+		return
+	}
+
+	shortURL, err := h.shortener.GetShortURL(c, fullURL, userID)
 
 	if errors.Is(err, myErrors.ErrURLAlreadySaved) {
 		c.Status(http.StatusConflict)
@@ -119,6 +127,8 @@ func (h *Handler) GetHandler(c *gin.Context) {
 		return
 	}
 
+	fmt.Println(shortURL)
+
 	fullURL, deletedFlag, err := h.shortener.GetFullURL(c, shortURL)
 
 	if err != nil {
@@ -132,7 +142,7 @@ func (h *Handler) GetHandler(c *gin.Context) {
 	}
 
 	c.Writer.Header().Set("Location", fullURL)
-	c.Status(http.StatusTemporaryRedirect)
+	c.AbortWithStatus(http.StatusTemporaryRedirect)
 }
 
 func (h *Handler) GetPing(c *gin.Context) {
@@ -158,13 +168,21 @@ func (h *Handler) PostAPI(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get(userIDKey)
+	userIDInterface, exists := c.Get(userIDKey)
 	if !exists {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 
-	shortURL, err := h.shortener.GetShortURL(c, fullURL, fmt.Sprintf("%v", userID))
+	userID, ok := userIDInterface.(string)
+
+	if !ok {
+		c.AbortWithStatus(http.StatusInternalServerError)
+		h.logger.Sugar().Errorf("failed to get userID from %v", userIDInterface)
+		return
+	}
+
+	shortURL, err := h.shortener.GetShortURL(c, fullURL, userID)
 	fullShortURL := fmt.Sprintf("%s/%s", h.config.BaseURL, shortURL)
 	resp := models.ResAPI{Result: fullShortURL}
 
@@ -203,7 +221,7 @@ func (h *Handler) PostAPIBatch(c *gin.Context) {
 
 	if err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
-		h.logger.Sugar().Errorf("failed to save list of URLS")
+		h.logger.Sugar().Error("failed to save list of URLs: %w", err)
 		return
 	}
 

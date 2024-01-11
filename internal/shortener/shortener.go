@@ -55,7 +55,7 @@ func (sh *Shortener) GetShortURLBatch(
 	}
 
 	if err := sh.store.SaveURLBatch(ctx, urls, userID); err != nil {
-		return nil, fmt.Errorf("failed to get short URLs: %w", err)
+		return nil, fmt.Errorf("failed to save URL Batch: %w", err)
 	}
 
 	return resSlice, nil
