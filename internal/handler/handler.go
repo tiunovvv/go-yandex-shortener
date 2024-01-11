@@ -22,8 +22,6 @@ import (
 	myErrors "github.com/tiunovvv/go-yandex-shortener/internal/errors"
 )
 
-const userIDKey = "user_id"
-
 type Handler struct {
 	config    *config.Config
 	shortener *shortener.Shortener
@@ -82,18 +80,9 @@ func (h *Handler) PostHandler(c *gin.Context) {
 		return
 	}
 
-	userIDInterface, exists := c.Get(userIDKey)
-	if !exists {
-		c.AbortWithStatus(http.StatusUnauthorized)
-		return
-	}
-
-	userID, ok := userIDInterface.(string)
-
-	if !ok {
-		c.AbortWithStatus(http.StatusInternalServerError)
-		h.logger.Sugar().Errorf("failed to get userID from %v", userIDInterface)
-		return
+	userID, status := h.getUserID(c)
+	if len(userID) == 0 {
+		c.AbortWithStatus(status)
 	}
 
 	shortURL, err := h.shortener.GetShortURL(c, fullURL, userID)
@@ -168,18 +157,9 @@ func (h *Handler) PostAPI(c *gin.Context) {
 		return
 	}
 
-	userIDInterface, exists := c.Get(userIDKey)
-	if !exists {
-		c.AbortWithStatus(http.StatusUnauthorized)
-		return
-	}
-
-	userID, ok := userIDInterface.(string)
-
-	if !ok {
-		c.AbortWithStatus(http.StatusInternalServerError)
-		h.logger.Sugar().Errorf("failed to get userID from %v", userIDInterface)
-		return
+	userID, status := h.getUserID(c)
+	if len(userID) == 0 {
+		c.AbortWithStatus(status)
 	}
 
 	shortURL, err := h.shortener.GetShortURL(c, fullURL, userID)
@@ -203,18 +183,9 @@ func (h *Handler) PostAPIBatch(c *gin.Context) {
 		return
 	}
 
-	userIDInterface, exists := c.Get(userIDKey)
-	if !exists {
-		c.AbortWithStatus(http.StatusUnauthorized)
-		return
-	}
-
-	userID, ok := userIDInterface.(string)
-
-	if !ok {
-		c.AbortWithStatus(http.StatusInternalServerError)
-		h.logger.Sugar().Errorf("failed to get userID from %v", userIDInterface)
-		return
+	userID, status := h.getUserID(c)
+	if len(userID) == 0 {
+		c.AbortWithStatus(status)
 	}
 
 	shortURLSlice, err := h.shortener.GetShortURLBatch(c, fullURLSlice, userID)
@@ -233,18 +204,9 @@ func (h *Handler) PostAPIBatch(c *gin.Context) {
 }
 
 func (h *Handler) PostAPIUserURLs(c *gin.Context) {
-	userIDInterface, exists := c.Get(userIDKey)
-	if !exists {
-		c.AbortWithStatus(http.StatusUnauthorized)
-		return
-	}
-
-	userID, ok := userIDInterface.(string)
-
-	if !ok {
-		c.AbortWithStatus(http.StatusInternalServerError)
-		h.logger.Sugar().Errorf("failed to get userID from %v", userIDInterface)
-		return
+	userID, status := h.getUserID(c)
+	if len(userID) == 0 {
+		c.AbortWithStatus(status)
 	}
 
 	usersURLs := h.shortener.GetURLByUserID(c, h.config.BaseURL, userID)
@@ -258,10 +220,9 @@ func (h *Handler) PostAPIUserURLs(c *gin.Context) {
 }
 
 func (h *Handler) SetDeletedFlag(c *gin.Context) {
-	userID, exists := c.Get(userIDKey)
-	if !exists {
-		c.AbortWithStatus(http.StatusUnauthorized)
-		return
+	userID, status := h.getUserID(c)
+	if len(userID) == 0 {
+		c.AbortWithStatus(status)
 	}
 
 	var shortURLSlice []string
@@ -271,7 +232,23 @@ func (h *Handler) SetDeletedFlag(c *gin.Context) {
 		c.AbortWithStatus(http.StatusInternalServerError)
 	}
 
-	h.shortener.SetDeletedFlag(c, fmt.Sprintf("%v", userID), shortURLSlice)
+	h.shortener.SetDeletedFlag(c, userID, shortURLSlice)
 
 	c.AbortWithStatus(http.StatusAccepted)
+}
+
+func (h *Handler) getUserID(c *gin.Context) (string, int) {
+	userIDInterface, exists := c.Get("user_id")
+	if !exists {
+		return "", http.StatusUnauthorized
+	}
+
+	userID, ok := userIDInterface.(string)
+
+	if !ok {
+		h.logger.Sugar().Errorf("failed to get userID from %v", userIDInterface)
+		return "", http.StatusInternalServerError
+	}
+
+	return userID, http.StatusOK
 }

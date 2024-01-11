@@ -123,7 +123,6 @@ func (db *DB) GetShortURL(ctx context.Context, fullURL string) string {
 func (db *DB) SaveURLBatch(ctx context.Context, urls map[string]string, userID string) error {
 	tx, err := db.pool.Begin(ctx)
 	if err != nil {
-
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
@@ -140,7 +139,11 @@ func (db *DB) SaveURLBatch(ctx context.Context, urls map[string]string, userID s
 	}
 
 	results := db.pool.SendBatch(ctx, batch)
-	defer results.Close()
+	defer func() {
+		if err := results.Close(); err != nil {
+			db.logger.Sugar().Infof("failed to close batch results: %w", err)
+		}
+	}()
 
 	if results == nil {
 		return fmt.Errorf("failed to send batch")

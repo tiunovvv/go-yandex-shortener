@@ -79,23 +79,6 @@ func (sh *Shortener) GetURLByUserID(ctx context.Context, baseURL string, userID 
 	return userURLs
 }
 
-func (sh *Shortener) SetDeletedFlag(ctx context.Context, userID string, shortURLSlice []string) {
-	deleteChan := make(chan string)
-	var wg sync.WaitGroup
-	numWorkers := 3
-	for i := 0; i < numWorkers; i++ {
-		wg.Add(1)
-		go sh.deletedFlagWorker(ctx, userID, deleteChan, &wg)
-	}
-
-	for _, shortURL := range shortURLSlice {
-		deleteChan <- shortURL
-	}
-
-	close(deleteChan)
-	wg.Wait()
-}
-
 func (sh *Shortener) CheckConnect(ctx context.Context) error {
 	if err := sh.store.GetPing(ctx); err != nil {
 		return fmt.Errorf("failed to connect store: %w", err)
@@ -103,18 +86,26 @@ func (sh *Shortener) CheckConnect(ctx context.Context) error {
 	return nil
 }
 
-func (sh *Shortener) deletedFlagWorker(
-	ctx context.Context,
-	userID string,
-	deleteChan <-chan string,
-	wg *sync.WaitGroup) {
-	defer wg.Done()
+func (sh *Shortener) SetDeletedFlag(ctx context.Context, userID string, shortURLSlice []string) {
+	jobQueue := make(chan Job, len(shortURLSlice))
+	const countOfWorkers = 3
+	dispatcher := NewDispatcher(ctx, countOfWorkers, jobQueue, sh.store, sh.logger)
 
-	for shortURL := range deleteChan {
-		if err := sh.store.SetDeletedFlag(ctx, userID, shortURL); err != nil {
-			sh.logger.Sugar().Errorf("failed to set deleted flag: %w", err)
+	go func() {
+		var wg sync.WaitGroup
+		for _, shortURL := range shortURLSlice {
+			dispatcher.jobQueue <- Job{userID: userID, shortURL: shortURL}
 		}
-	}
+		close(dispatcher.jobQueue)
+		for _, worker := range dispatcher.workerPool {
+			wg.Add(1)
+			go func(w *Worker) {
+				defer wg.Done()
+				w.Start(ctx)
+			}(worker)
+		}
+		wg.Wait()
+	}()
 }
 
 func generateShortURL() string {

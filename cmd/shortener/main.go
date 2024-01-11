@@ -12,7 +12,6 @@ func main() {
 
 	server, err := server.NewServer(ctx)
 	if err != nil {
-		cancelCtx()
 		log.Fatalf("error building server: %v", err)
 	}
 
