@@ -45,7 +45,8 @@ func (sh *Shortener) GetShortURL(ctx context.Context, fullURL string, userID str
 func (sh *Shortener) GetShortURLBatch(
 	ctx context.Context,
 	reqSlice []models.ReqAPIBatch,
-	userID string) ([]models.ResAPIBatch, error) {
+	userID string,
+) ([]models.ResAPIBatch, error) {
 	urls := make(map[string]string)
 	resSlice := make([]models.ResAPIBatch, 0, len(reqSlice))
 	for _, req := range reqSlice {
@@ -87,8 +88,8 @@ func (sh *Shortener) CheckConnect(ctx context.Context) error {
 }
 
 func (sh *Shortener) SetDeletedFlag(ctx context.Context, userID string, shortURLSlice []string) {
-	jobQueue := make(chan Job, len(shortURLSlice))
 	const countOfWorkers = 3
+	jobQueue := make(chan Job, countOfWorkers)
 	dispatcher := NewDispatcher(ctx, countOfWorkers, jobQueue, sh.store, sh.logger)
 
 	go func() {

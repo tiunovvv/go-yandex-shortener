@@ -9,7 +9,6 @@ import (
 
 func main() {
 	ctx, cancelCtx := context.WithCancel(context.Background())
-
 	server, err := server.NewServer(ctx)
 	if err != nil {
 		log.Fatalf("error building server: %v", err)
