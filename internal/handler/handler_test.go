@@ -2,11 +2,13 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -66,9 +68,10 @@ func TestPostHandler(t *testing.T) {
 	}
 
 	config := &config.Config{
-		BaseURL:         "http://localhost:8080/",
-		ServerAddress:   "localhost:8080",
-		FileStoragePath: "",
+		BaseURL:       "http://localhost:8080/",
+		ServerAddress: "localhost:8080",
+		FilePath:      "",
+		DSN:           "",
 	}
 
 	for _, tt := range tests {
@@ -78,12 +81,16 @@ func TestPostHandler(t *testing.T) {
 
 			logger, err := zap.NewDevelopment()
 			if err != nil {
-				log.Fatalf("error occured while initializing logger: %v", err)
+				log.Fatalf("failed to initialize logger: %v", err)
 				return
 			}
 
-			storage := storage.NewFileStore(config, logger)
-			shortener := shortener.NewShortener(storage)
+			store, err := storage.NewStore(context.Background(), config, logger)
+			if err != nil {
+				log.Fatalf("failed to create storage: %v", err)
+				return
+			}
+			shortener := shortener.NewShortener(store, logger)
 			handler := NewHandler(config, shortener, logger)
 
 			router := handler.InitRoutes()
@@ -125,7 +132,7 @@ func TestGetHandler(t *testing.T) {
 		},
 		{
 			name:     "negativ test: initial shortURL",
-			mapKey:   "OWjwkttu",
+			mapKey:   "OWjwktt1",
 			mapValue: "http://www.yandex.ru",
 			request:  "http://localhost:8080/",
 			want: want{
@@ -135,7 +142,7 @@ func TestGetHandler(t *testing.T) {
 		},
 		{
 			name:     "negativ test: shortURL doesn't exist",
-			mapKey:   "OWjwkttu",
+			mapKey:   "OWjwktt2",
 			mapValue: "http://www.yandex.ru",
 			request:  "http://localhost:8080/123",
 			want: want{
@@ -146,27 +153,36 @@ func TestGetHandler(t *testing.T) {
 	}
 
 	config := &config.Config{
-		BaseURL:         "http://localhost:8080/",
-		ServerAddress:   "localhost:8080",
-		FileStoragePath: "",
+		BaseURL:       "http://localhost:8080/",
+		ServerAddress: "localhost:8080",
+		FilePath:      "",
+		DSN:           "",
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			logger, err := zap.NewDevelopment()
 			if err != nil {
-				log.Fatalf("error occured while initializing logger: %v", err)
+				log.Fatalf("failed to initialize logger: %v", err)
 				return
 			}
 
 			request := httptest.NewRequest(http.MethodGet, tt.request, nil)
 			w := httptest.NewRecorder()
 
-			storage := storage.NewFileStore(config, logger)
-			if storage.SaveURL(tt.mapValue, tt.mapKey) != nil {
-				log.Fatal("error saving URL")
+			store, err := storage.NewStore(context.Background(), config, logger)
+			if err != nil {
+				log.Fatalf("failed to create storage: %v", err)
+				return
 			}
-			shortener := shortener.NewShortener(storage)
+
+			const seconds = 10 * time.Second
+			ctx, cancelCtx := context.WithTimeout(context.Background(), seconds)
+			defer cancelCtx()
+			if store.SaveURL(ctx, tt.mapKey, tt.mapValue, "") != nil {
+				log.Fatal("failed to save URL")
+			}
+			shortener := shortener.NewShortener(store, logger)
 			handler := NewHandler(config, shortener, logger)
 
 			router := handler.InitRoutes()
@@ -226,12 +242,24 @@ func TestPostApiHandler(t *testing.T) {
 				statusCode: 500,
 			},
 		},
+		{
+			name: "positive test several URLS",
+			post: post{
+				request: "http://localhost:8080/api/shorten/batch",
+				body: `[{"correlation_id": "1","original_url": "yandex.ru"},
+				           {"correlation_id": "2","original_url": "google.ru"}]`,
+			},
+			want: want{
+				statusCode: 201,
+			},
+		},
 	}
 
 	config := &config.Config{
-		BaseURL:         "http://localhost:8080/",
-		ServerAddress:   "localhost:8080",
-		FileStoragePath: "",
+		BaseURL:       "http://localhost:8080/",
+		ServerAddress: "localhost:8080",
+		FilePath:      "",
+		DSN:           "",
 	}
 
 	for _, tt := range tests {
@@ -241,12 +269,16 @@ func TestPostApiHandler(t *testing.T) {
 			w := httptest.NewRecorder()
 			logger, err := zap.NewDevelopment()
 			if err != nil {
-				log.Fatalf("error occured while initializing logger: %v", err)
+				log.Fatalf("failed to initialize logger: %v", err)
 				return
 			}
 
-			storage := storage.NewFileStore(config, logger)
-			shortener := shortener.NewShortener(storage)
+			store, err := storage.NewStore(context.Background(), config, logger)
+			if err != nil {
+				log.Fatalf("failed to create storage: %v", err)
+				return
+			}
+			shortener := shortener.NewShortener(store, logger)
 			handler := NewHandler(config, shortener, logger)
 
 			router := handler.InitRoutes()

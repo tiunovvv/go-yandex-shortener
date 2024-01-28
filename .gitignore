@@ -25,3 +25,4 @@ vendor/
 Makefile
 golangci-lint/report.json
 tmp/short-url-db.json
+EMP_FILE

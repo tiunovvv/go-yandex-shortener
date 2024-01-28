@@ -1,9 +1,24 @@
 package models
 
-type RequestAPIShorten struct {
+type ReqAPI struct {
 	URL string `json:"url"`
 }
 
-type ResponseAPIShorten struct {
+type ResAPI struct {
 	Result string `json:"result"`
+}
+
+type ReqAPIBatch struct {
+	ID      string `json:"correlation_id"`
+	FullURL string `json:"original_url"`
+}
+
+type ResAPIBatch struct {
+	ID       string `json:"correlation_id"`
+	ShortURL string `json:"short_url"`
+}
+
+type UsersURLs struct {
+	ShortURL    string `json:"short_url"`
+	OriginalURL string `json:"original_url"`
 }
