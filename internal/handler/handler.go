@@ -116,8 +116,6 @@ func (h *Handler) GetHandler(c *gin.Context) {
 		return
 	}
 
-	fmt.Println(shortURL)
-
 	fullURL, deletedFlag, err := h.shortener.GetFullURL(c, shortURL)
 
 	if err != nil {
@@ -144,7 +142,7 @@ func (h *Handler) GetPing(c *gin.Context) {
 func (h *Handler) PostAPI(c *gin.Context) {
 	var req models.ReqAPI
 	if err := c.ShouldBindJSON(&req); err != nil {
-		h.logger.Sugar().Error("failed to decode request JSON body: %w", err)
+		h.logger.Sugar().Infof("failed to decode request JSON body: %w", err)
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
@@ -153,7 +151,7 @@ func (h *Handler) PostAPI(c *gin.Context) {
 
 	if _, err := url.ParseRequestURI(fullURL); err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
-		h.logger.Sugar().Errorf("%s is not URL", fullURL)
+		h.logger.Sugar().Infof("%s is not URL", fullURL)
 		return
 	}
 
