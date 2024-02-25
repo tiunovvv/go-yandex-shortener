@@ -34,7 +34,7 @@ func initRouter() (*gin.Engine, storage.Store, error) {
 		BaseURL:       baseURL,
 		ServerAddress: "localhost:8080",
 		FilePath:      "",
-		DSN:           "postgres://postgres:postgres@localhost:5432/praktikum?sslmode=disable",
+		DSN:           "postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable",
 	}
 
 	cfg := zap.NewDevelopmentConfig()
