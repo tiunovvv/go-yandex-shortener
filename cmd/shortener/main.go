@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 
+	_ "net/http/pprof"
+
 	"github.com/tiunovvv/go-yandex-shortener/internal/server"
 )
 
