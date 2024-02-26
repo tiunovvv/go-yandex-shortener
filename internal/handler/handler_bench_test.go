@@ -40,7 +40,7 @@ func initRouter() (*gin.Engine, storage.Store, error) {
 	}
 	log := logger.Sugar()
 
-	store, err := storage.NewStore(context.Background(), config, log)
+	store := storage.NewMemory()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create storage: %w", err)
 	}

@@ -12,7 +12,6 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
-	"github.com/tiunovvv/go-yandex-shortener/internal/config"
 	myErrors "github.com/tiunovvv/go-yandex-shortener/internal/errors"
 	"github.com/tiunovvv/go-yandex-shortener/internal/models"
 	"github.com/tiunovvv/go-yandex-shortener/internal/storage"
@@ -28,8 +27,6 @@ const (
 )
 
 func initShortener() (*Shortener, error) {
-	cfg := config.GetConfig()
-
 	loggerCfg := zap.NewDevelopmentConfig()
 	loggerCfg.Level = zap.NewAtomicLevelAt(zapcore.ErrorLevel)
 
@@ -40,7 +37,7 @@ func initShortener() (*Shortener, error) {
 
 	log := logger.Sugar()
 
-	store, err := storage.NewStore(context.Background(), cfg, log)
+	store := storage.NewMemory()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create storage: %w", err)
 	}
