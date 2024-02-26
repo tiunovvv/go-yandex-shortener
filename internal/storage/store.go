@@ -18,21 +18,21 @@ type Store interface {
 	Close() error
 }
 
-func NewStore(ctx context.Context, config *config.Config, logger *zap.Logger) (Store, error) {
-	if len(config.DSN) != 0 {
-		store, err := NewDB(ctx, config.DSN, logger)
+func NewStore(ctx context.Context, cfg *config.Config, log *zap.SugaredLogger) (Store, error) {
+	if len(cfg.DSN) != 0 {
+		store, err := NewDB(ctx, cfg.DSN, log)
 		if err == nil {
 			return store, nil
 		}
-		logger.Sugar().Errorf("failed to create storage using DB: %w", err)
+		log.Errorf("failed to create storage using DB: %w", err)
 	}
 
-	if len(config.FilePath) != 0 {
-		store, err := NewFile(config.FilePath, logger)
+	if len(cfg.FilePath) != 0 {
+		store, err := NewFile(cfg.FilePath, log)
 		if err == nil {
 			return store, nil
 		}
-		logger.Sugar().Errorf("failed to create storage using File: %w", err)
+		log.Errorf("failed to create storage using File: %w", err)
 	}
 
 	return NewMemory(), nil

@@ -21,17 +21,17 @@ import (
 const insertSchemaURLs = `INSERT INTO urls (short_url, full_url, user_id, deleted_flag) VALUES ($1, $2, $3, $4)`
 
 type DB struct {
-	pool   *pgxpool.Pool
-	logger *zap.Logger
+	pool *pgxpool.Pool
+	log  *zap.SugaredLogger
 }
 
-func NewDB(ctx context.Context, dsn string, logger *zap.Logger) (Store, error) {
+func NewDB(ctx context.Context, dsn string, log *zap.SugaredLogger) (Store, error) {
 	poolCfg, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse the DSN: %w", err)
 	}
 
-	queryTracer := NewQueryTracer(logger)
+	queryTracer := NewQueryTracer(log)
 	poolCfg.ConnConfig.Tracer = queryTracer
 	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
@@ -45,7 +45,7 @@ func NewDB(ctx context.Context, dsn string, logger *zap.Logger) (Store, error) {
 		return nil, fmt.Errorf("failed to run DB migrations: %w", err)
 	}
 
-	dataBase := &DB{pool: pool, logger: logger}
+	dataBase := &DB{pool: pool, log: log}
 	return dataBase, nil
 }
 
@@ -128,7 +128,7 @@ func (db *DB) SaveURLBatch(ctx context.Context, urls map[string]string, userID s
 
 	defer func() {
 		if err := tx.Rollback(ctx); err != nil {
-			db.logger.Sugar().Infof("failed to rollback: %w", err)
+			db.log.Infof("failed to rollback: %w", err)
 		}
 	}()
 
@@ -141,7 +141,7 @@ func (db *DB) SaveURLBatch(ctx context.Context, urls map[string]string, userID s
 	results := db.pool.SendBatch(ctx, batch)
 	defer func() {
 		if err := results.Close(); err != nil {
-			db.logger.Sugar().Infof("failed to close batch results: %w", err)
+			db.log.Infof("failed to close batch results: %w", err)
 		}
 	}()
 
@@ -161,7 +161,7 @@ func (db *DB) GetURLByUserID(ctx context.Context, userID string) map[string]stri
 
 	rows, err := db.pool.Query(ctx, selectSchemaURLsByUserID, userID)
 	if err != nil {
-		db.logger.Sugar().Errorf("failed to select by user_id: %w", err)
+		db.log.Errorf("failed to select by user_id: %w", err)
 		return nil
 	}
 
@@ -172,7 +172,7 @@ func (db *DB) GetURLByUserID(ctx context.Context, userID string) map[string]stri
 		var shortURL, fullURL string
 		err := rows.Scan(&shortURL, &fullURL)
 		if err != nil {
-			db.logger.Sugar().Errorf("failed to get rows from select by user_id: %w", err)
+			db.log.Errorf("failed to get rows from select by user_id: %w", err)
 		}
 		urls[shortURL] = fullURL
 	}

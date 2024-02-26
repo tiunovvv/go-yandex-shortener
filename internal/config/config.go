@@ -6,48 +6,43 @@ import (
 	"os"
 	"strconv"
 	"strings"
-
-	"go.uber.org/zap"
+	"sync"
 )
 
 type Config struct {
-	logger        *zap.Logger
 	ServerAddress string
 	BaseURL       string
 	FilePath      string
 	DSN           string
 }
 
-func NewConfig(logger *zap.Logger) *Config {
-	serverAddress := flag.String("a", "localhost:8080", "server start URL")
-	baseURL := flag.String("b", "http://localhost:8080", "base of short URL")
-	filePath := flag.String("f", "tmp/short-url-db.json", "file storage path")
-	dsn := flag.String("d", "", "db adress")
-	flag.Parse()
+var (
+	config *Config
+	once   sync.Once
+)
 
-	config := Config{
-		logger:        logger,
-		ServerAddress: getServerAddress(serverAddress),
-		BaseURL:       getBaseURL(baseURL),
-		FilePath:      getFilePath(filePath),
-		DSN:           getDatabaseDsn(dsn),
-	}
+func GetConfig() *Config {
+	once.Do(
+		func() {
+			serverAddress := flag.String("a", "localhost:8080", "server start URL")
+			baseURL := flag.String("b", "http://localhost:8080", "base of short URL")
+			filePath := flag.String("f", "tmp/short-url-db.json", "file storage path")
+			dsn := flag.String("d", "", "database adress")
+			flag.Parse()
 
-	logger.Sugar().Infof("server start URL: %s", config.ServerAddress)
-	logger.Sugar().Infof("base of short URL: %s", config.BaseURL)
-	if config.FilePath == "" {
-		logger.Sugar().Info("file storage path is empty, disk recording is disabled")
-	}
-	if config.FilePath != "" {
-		logger.Sugar().Infof("file storage path: %s", config.FilePath)
-	}
-	logger.Sugar().Infof("database connection address: %s", config.DSN)
+			config = &Config{
+				ServerAddress: getServerAddress(serverAddress),
+				BaseURL:       getBaseURL(baseURL),
+				FilePath:      getFilePath(filePath),
+				DSN:           getDatabaseDsn(dsn),
+			}
+		})
 
-	return &config
+	return config
 }
 
 func getServerAddress(flagServerAddress *string) string {
-	if envServerAddress := os.Getenv("SERVER_ADDRESS"); envServerAddress != "" {
+	if envServerAddress, ok := os.LookupEnv("SERVER_ADDRESS"); ok {
 		return envServerAddress
 	}
 
@@ -55,7 +50,7 @@ func getServerAddress(flagServerAddress *string) string {
 }
 
 func getBaseURL(flagBaseURL *string) string {
-	if envBaseURL := os.Getenv("BASE_URL"); envBaseURL != "" && checkBaseURL(envBaseURL) {
+	if envBaseURL, ok := os.LookupEnv("BASE_URL"); ok && checkBaseURL(envBaseURL) {
 		return envBaseURL
 	}
 
@@ -63,7 +58,7 @@ func getBaseURL(flagBaseURL *string) string {
 }
 
 func getFilePath(filePath *string) string {
-	if envFilePath := os.Getenv("FILE_STORAGE_PATH"); envFilePath != "" {
+	if envFilePath, ok := os.LookupEnv("FILE_STORAGE_PATH"); ok {
 		return envFilePath
 	}
 
@@ -71,7 +66,7 @@ func getFilePath(filePath *string) string {
 }
 
 func getDatabaseDsn(databaseDsn *string) string {
-	if envDatabaseDsn := os.Getenv("DATABASE_DSN"); envDatabaseDsn != "" {
+	if envDatabaseDsn, ok := os.LookupEnv("DATABASE_DSN"); ok {
 		return envDatabaseDsn
 	}
 

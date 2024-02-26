@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
-	"log"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -30,38 +29,31 @@ const (
 )
 
 func initRouter() (*gin.Engine, storage.Store, error) {
-	config := &config.Config{
-		BaseURL:       baseURL,
-		ServerAddress: "localhost:8080",
-		FilePath:      "",
-		DSN:           "postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable",
-	}
+	config := config.GetConfig()
 
 	cfg := zap.NewDevelopmentConfig()
 	cfg.Level = zap.NewAtomicLevelAt(zapcore.ErrorLevel)
 
 	logger, err := cfg.Build()
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to initialize logger: %v", err)
+		return nil, nil, fmt.Errorf("failed to initialize logger: %w", err)
 	}
+	log := logger.Sugar()
 
-	store, err := storage.NewStore(context.Background(), config, logger)
+	store, err := storage.NewStore(context.Background(), config, log)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create storage: %v", err)
+		return nil, nil, fmt.Errorf("failed to create storage: %w", err)
 	}
 
-	shortener := shortener.NewShortener(store, logger)
-	handler := NewHandler(config, shortener, logger)
+	shortener := shortener.NewShortener(store, log)
+	handler := NewHandler(config, shortener, log)
 	router := handler.InitRoutes()
 	return router, store, nil
 }
 
 func BenchmarkPostHandler(b *testing.B) {
 	router, _, err := initRouter()
-	if err != nil {
-		log.Fatalf("failed to create router: %v", err)
-		return
-	}
+	assert.Equal(b, err, nil)
 
 	url := generateRandomURL()
 
@@ -75,16 +67,15 @@ func BenchmarkPostHandler(b *testing.B) {
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, request)
 		result := w.Result()
+		err = result.Body.Close()
+		assert.Equal(b, err, nil)
 		assert.Equal(b, http.StatusConflict, result.StatusCode)
 	}
 }
 
 func BenchmarkGetHandler(b *testing.B) {
 	router, store, err := initRouter()
-	if err != nil {
-		log.Fatalf("failed to create router: %v", err)
-		return
-	}
+	assert.Equal(b, err, nil)
 
 	const seconds = 10 * time.Second
 	ctx, cancelCtx := context.WithTimeout(context.Background(), seconds)
@@ -93,15 +84,11 @@ func BenchmarkGetHandler(b *testing.B) {
 	urlForSave := generateRandomURL()
 	key := generateRandomSegment(segLen)
 
-	if err = store.SaveURL(ctx, key, urlForSave, ""); err != nil {
-		log.Fatalf("failed to save URL: %v", err)
-	}
+	err = store.SaveURL(ctx, key, urlForSave, "")
+	assert.Equal(b, err, nil)
 
 	target, err := url.JoinPath(baseURL, key)
-	if err != nil {
-		log.Fatalf("failed to join target URL: %v", err)
-		return
-	}
+	assert.Equal(b, err, nil)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -109,6 +96,8 @@ func BenchmarkGetHandler(b *testing.B) {
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, request)
 		result := w.Result()
+		err = result.Body.Close()
+		assert.Equal(b, err, nil)
 		assert.Equal(b, http.StatusTemporaryRedirect, result.StatusCode)
 		assert.Equal(b, urlForSave, result.Header.Get("Location"))
 	}
@@ -116,10 +105,7 @@ func BenchmarkGetHandler(b *testing.B) {
 
 func BenchmarkPostAPI(b *testing.B) {
 	router, store, err := initRouter()
-	if err != nil {
-		log.Fatalf("failed to create router: %v", err)
-		return
-	}
+	assert.Equal(b, err, nil)
 
 	const seconds = 10 * time.Second
 	ctx, cancelCtx := context.WithTimeout(context.Background(), seconds)
@@ -128,9 +114,8 @@ func BenchmarkPostAPI(b *testing.B) {
 	urlForSave := generateRandomURL()
 	body := `{"url":"` + urlForSave + `"}`
 
-	if err = store.SaveURL(ctx, key, urlForSave, ""); err != nil {
-		log.Fatalf("failed to save URL: %v", err)
-	}
+	err = store.SaveURL(ctx, key, urlForSave, "")
+	assert.Equal(b, err, nil)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -139,16 +124,15 @@ func BenchmarkPostAPI(b *testing.B) {
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, request)
 		result := w.Result()
+		err = result.Body.Close()
+		assert.Equal(b, err, nil)
 		assert.Equal(b, http.StatusConflict, result.StatusCode)
 	}
 }
 
 func BenchmarkPostAPIBatch(b *testing.B) {
 	router, _, err := initRouter()
-	if err != nil {
-		log.Fatalf("failed to create router: %v", err)
-		return
-	}
+	assert.Equal(b, err, nil)
 
 	firstURL := generateRandomURL()
 	secondURL := generateRandomURL()
@@ -158,13 +142,15 @@ func BenchmarkPostAPIBatch(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		request := httptest.NewRequest(http.MethodPost, "http://localhost:8080/api/shorten/batch", bytes.NewReader([]byte(body)))
+		request := httptest.NewRequest(http.MethodPost,
+			"http://localhost:8080/api/shorten/batch", bytes.NewReader([]byte(body)))
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, request)
 		result := w.Result()
+		err = result.Body.Close()
+		assert.Equal(b, err, nil)
 		assert.Equal(b, http.StatusCreated, result.StatusCode)
 	}
-
 }
 
 func generateRandomURL() string {

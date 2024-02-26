@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func SetCookie(log *zap.Logger) gin.HandlerFunc {
+func SetCookie(log *zap.SugaredLogger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		const userIDKey = "user_id"
 		session := sessions.Default(c)
@@ -22,13 +22,13 @@ func SetCookie(log *zap.Logger) gin.HandlerFunc {
 
 		userID, err := generateUniqueUserID()
 		if err != nil {
-			log.Sugar().Errorf("failed to generate userID: %w", err)
+			log.Errorf("failed to generate userID: %w", err)
 			c.AbortWithStatus(http.StatusBadRequest)
 		}
 
 		session.Set(userIDKey, userID)
 		if err := session.Save(); err != nil {
-			log.Sugar().Errorf("failed to set userID: %w", err)
+			log.Errorf("failed to set userID: %w", err)
 			c.AbortWithStatus(http.StatusBadRequest)
 		}
 

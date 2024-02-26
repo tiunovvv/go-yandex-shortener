@@ -15,14 +15,14 @@ import (
 )
 
 type Shortener struct {
-	store  storage.Store
-	logger *zap.Logger
+	store storage.Store
+	log   *zap.SugaredLogger
 }
 
-func NewShortener(store storage.Store, logger *zap.Logger) *Shortener {
+func NewShortener(store storage.Store, log *zap.SugaredLogger) *Shortener {
 	return &Shortener{
-		store:  store,
-		logger: logger,
+		store: store,
+		log:   log,
 	}
 }
 
@@ -47,12 +47,14 @@ func (sh *Shortener) GetShortURLBatch(
 	reqSlice []models.ReqAPIBatch,
 	userID string,
 ) ([]models.ResAPIBatch, error) {
-	urls := make(map[string]string)
-	resSlice := make([]models.ResAPIBatch, 0, len(reqSlice))
+	urls := make(map[string]string, len(reqSlice))
+	resSlice := make([]models.ResAPIBatch, len(reqSlice))
+	i := 0
 	for _, req := range reqSlice {
-		res := models.ResAPIBatch{ID: req.ID, ShortURL: generateShortURL()}
-		resSlice = append(resSlice, res)
-		urls[res.ShortURL] = req.FullURL
+		shortURL := generateShortURL()
+		resSlice[i] = models.ResAPIBatch{ID: req.ID, ShortURL: shortURL}
+		urls[resSlice[i].ShortURL] = req.FullURL
+		i++
 	}
 
 	if err := sh.store.SaveURLBatch(ctx, urls, userID); err != nil {
@@ -72,10 +74,13 @@ func (sh *Shortener) GetFullURL(ctx context.Context, shortURL string) (string, b
 
 func (sh *Shortener) GetURLByUserID(ctx context.Context, baseURL string, userID string) []models.UsersURLs {
 	urls := sh.store.GetURLByUserID(ctx, userID)
-	userURLs := make([]models.UsersURLs, 0, len(urls))
+	userURLs := make([]models.UsersURLs, len(urls))
+
+	i := 0
 	for k, v := range urls {
-		userURL := models.UsersURLs{ShortURL: fmt.Sprintf("%s/%s", baseURL, k), OriginalURL: v}
-		userURLs = append(userURLs, userURL)
+		shortURL := fmt.Sprintf("%s/%s", baseURL, k)
+		userURLs[i] = models.UsersURLs{ShortURL: shortURL, OriginalURL: v}
+		i++
 	}
 	return userURLs
 }
@@ -90,7 +95,7 @@ func (sh *Shortener) CheckConnect(ctx context.Context) error {
 func (sh *Shortener) SetDeletedFlag(ctx context.Context, userID string, shortURLSlice []string) {
 	const countOfWorkers = 3
 	jobQueue := make(chan Job, countOfWorkers)
-	dispatcher := NewDispatcher(ctx, countOfWorkers, jobQueue, sh.store, sh.logger)
+	dispatcher := NewDispatcher(ctx, countOfWorkers, jobQueue, sh.store, sh.log)
 
 	go func() {
 		var wg sync.WaitGroup

@@ -14,7 +14,7 @@ type Job struct {
 
 type Worker struct {
 	jobQueue chan Job
-	logger   *zap.Logger
+	log      *zap.SugaredLogger
 	store    storage.Store
 	id       int
 }
@@ -24,12 +24,12 @@ type Dispatcher struct {
 	workerPool []*Worker
 }
 
-func NewWorker(id int, jobQueue chan Job, store storage.Store, logger *zap.Logger) *Worker {
+func NewWorker(id int, jobQueue chan Job, store storage.Store, log *zap.SugaredLogger) *Worker {
 	return &Worker{
 		id:       id,
 		jobQueue: jobQueue,
 		store:    store,
-		logger:   logger,
+		log:      log,
 	}
 }
 
@@ -38,10 +38,10 @@ func NewDispatcher(
 	workerCount int,
 	jobQueue chan Job,
 	store storage.Store,
-	logger *zap.Logger) *Dispatcher {
+	log *zap.SugaredLogger) *Dispatcher {
 	workerPool := make([]*Worker, workerCount)
 	for i := 0; i < workerCount; i++ {
-		worker := NewWorker(i, jobQueue, store, logger)
+		worker := NewWorker(i, jobQueue, store, log)
 		workerPool[i] = worker
 		go worker.Start(ctx)
 	}
@@ -55,7 +55,7 @@ func NewDispatcher(
 func (w *Worker) Start(ctx context.Context) {
 	for job := range w.jobQueue {
 		if err := w.store.SetDeletedFlag(ctx, job.userID, job.shortURL); err != nil {
-			w.logger.Sugar().Errorf("failed to set deleted flag: %w", err)
+			w.log.Errorf("failed to set deleted flag: %w", err)
 		}
 	}
 }
