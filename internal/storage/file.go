@@ -22,10 +22,10 @@ type URLsJSON struct {
 type File struct {
 	memory *Memory
 	file   *os.File
-	logger *zap.Logger
+	log    *zap.SugaredLogger
 }
 
-func NewFile(filePath string, logger *zap.Logger) (Store, error) {
+func NewFile(filePath string, log *zap.SugaredLogger) (Store, error) {
 	memory := &Memory{urls: make(map[string]URLInfo)}
 	const perm = 0666
 
@@ -33,9 +33,9 @@ func NewFile(filePath string, logger *zap.Logger) (Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %s, %w", filePath, err)
 	}
-	f := &File{memory: memory, file: file, logger: logger}
+	f := &File{memory: memory, file: file, log: log}
 	if err := f.loadURLs(); err != nil {
-		logger.Sugar().Info("failed to get data from temp file", err)
+		f.log.Info("failed to get data from temp file", err)
 	}
 	return f, nil
 }
@@ -123,22 +123,22 @@ func (f *File) writeURLInFile(shortURL string, fullURL string) {
 
 	data, err := json.Marshal(u)
 	if err != nil {
-		f.logger.Sugar().Errorf("failed to write masrshaling data %w", err)
+		f.log.Errorf("failed to write masrshaling data %w", err)
 		return
 	}
 
 	if _, err := writer.Write(data); err != nil {
-		f.logger.Sugar().Errorf("failed to write data into temp file %w", err)
+		f.log.Errorf("failed to write data into temp file %w", err)
 		return
 	}
 
 	if err := writer.WriteByte('\n'); err != nil {
-		f.logger.Sugar().Errorf("failed to write newline into temp file %w", err)
+		f.log.Errorf("failed to write newline into temp file %w", err)
 		return
 	}
 
 	if err := writer.Flush(); err != nil {
-		f.logger.Sugar().Errorf("failed to flush temp file %w", err)
+		f.log.Errorf("failed to flush temp file %w", err)
 		return
 	}
 }

@@ -84,14 +84,15 @@ func TestPostHandler(t *testing.T) {
 				log.Fatalf("failed to initialize logger: %v", err)
 				return
 			}
+			log := logger.Sugar()
 
-			store, err := storage.NewStore(context.Background(), config, logger)
+			store, err := storage.NewStore(context.Background(), config, log)
 			if err != nil {
 				log.Fatalf("failed to create storage: %v", err)
 				return
 			}
-			shortener := shortener.NewShortener(store, logger)
-			handler := NewHandler(config, shortener, logger)
+			shortener := shortener.NewShortener(store, log)
+			handler := NewHandler(config, shortener, log)
 
 			router := handler.InitRoutes()
 			router.ServeHTTP(w, request)
@@ -166,11 +167,12 @@ func TestGetHandler(t *testing.T) {
 				log.Fatalf("failed to initialize logger: %v", err)
 				return
 			}
+			log := logger.Sugar()
 
 			request := httptest.NewRequest(http.MethodGet, tt.request, nil)
 			w := httptest.NewRecorder()
 
-			store, err := storage.NewStore(context.Background(), config, logger)
+			store, err := storage.NewStore(context.Background(), config, log)
 			if err != nil {
 				log.Fatalf("failed to create storage: %v", err)
 				return
@@ -182,8 +184,8 @@ func TestGetHandler(t *testing.T) {
 			if store.SaveURL(ctx, tt.mapKey, tt.mapValue, "") != nil {
 				log.Fatal("failed to save URL")
 			}
-			shortener := shortener.NewShortener(store, logger)
-			handler := NewHandler(config, shortener, logger)
+			shortener := shortener.NewShortener(store, log)
+			handler := NewHandler(config, shortener, log)
 
 			router := handler.InitRoutes()
 			router.ServeHTTP(w, request)
@@ -273,13 +275,15 @@ func TestPostApiHandler(t *testing.T) {
 				return
 			}
 
-			store, err := storage.NewStore(context.Background(), config, logger)
+			log := logger.Sugar()
+
+			store, err := storage.NewStore(context.Background(), config, log)
 			if err != nil {
 				log.Fatalf("failed to create storage: %v", err)
 				return
 			}
-			shortener := shortener.NewShortener(store, logger)
-			handler := NewHandler(config, shortener, logger)
+			shortener := shortener.NewShortener(store, log)
+			handler := NewHandler(config, shortener, log)
 
 			router := handler.InitRoutes()
 			router.ServeHTTP(w, request)
