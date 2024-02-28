@@ -22,12 +22,14 @@ import (
 	myErrors "github.com/tiunovvv/go-yandex-shortener/internal/errors"
 )
 
+// Handler handle requests using config logger and bussines logic.
 type Handler struct {
 	cfg *config.Config
 	sh  *shortener.Shortener
 	log *zap.SugaredLogger
 }
 
+// NewHandler creates and returns new Handler.
 func NewHandler(cfg *config.Config, sh *shortener.Shortener, log *zap.SugaredLogger) *Handler {
 	return &Handler{
 		cfg: cfg,
@@ -36,6 +38,7 @@ func NewHandler(cfg *config.Config, sh *shortener.Shortener, log *zap.SugaredLog
 	}
 }
 
+// InitRoutes initializes and returns router.
 func (h *Handler) InitRoutes() *gin.Engine {
 	router := gin.New()
 
@@ -60,6 +63,7 @@ func (h *Handler) InitRoutes() *gin.Engine {
 	return router
 }
 
+// PostHandler creates short URL from full URL in request body.
 func (h *Handler) PostHandler(c *gin.Context) {
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
@@ -108,6 +112,7 @@ func (h *Handler) PostHandler(c *gin.Context) {
 	}
 }
 
+// GetHandler returns full URL by short URL like http://localhost:8080/KMlLwVjl.
 func (h *Handler) GetHandler(c *gin.Context) {
 	path := c.Request.URL.RequestURI()
 	shortURL := strings.ReplaceAll(path, "/", "")
@@ -133,6 +138,7 @@ func (h *Handler) GetHandler(c *gin.Context) {
 	c.AbortWithStatus(http.StatusTemporaryRedirect)
 }
 
+// GetPing returns 200 if server is up and running.
 func (h *Handler) GetPing(c *gin.Context) {
 	if err := h.sh.CheckConnect(c); err != nil {
 		c.AbortWithStatus(http.StatusInternalServerError)
@@ -140,6 +146,7 @@ func (h *Handler) GetPing(c *gin.Context) {
 	c.AbortWithStatus(http.StatusOK)
 }
 
+// PostAPI returns short URL from storage for full URL in request body.
 func (h *Handler) PostAPI(c *gin.Context) {
 	var req models.ReqAPI
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -174,6 +181,7 @@ func (h *Handler) PostAPI(c *gin.Context) {
 	c.AbortWithStatusJSON(http.StatusCreated, resp)
 }
 
+// PostAPIBatch generates short URL list for list of full URL in request body.
 func (h *Handler) PostAPIBatch(c *gin.Context) {
 	var fullURLSlice []models.ReqAPIBatch
 
@@ -204,6 +212,7 @@ func (h *Handler) PostAPIBatch(c *gin.Context) {
 	c.AbortWithStatusJSON(http.StatusCreated, shortURLSlice)
 }
 
+// PostAPIUserURLs returns list of short and full URLs for current user.
 func (h *Handler) PostAPIUserURLs(c *gin.Context) {
 	userID := h.getUserID(c)
 	if len(userID) == 0 {
@@ -221,6 +230,7 @@ func (h *Handler) PostAPIUserURLs(c *gin.Context) {
 	c.AbortWithStatusJSON(http.StatusOK, usersURLs)
 }
 
+// SetDeletedFlag sets deleted flag in storagefor list of short URL in request body.
 func (h *Handler) SetDeletedFlag(c *gin.Context) {
 	userID := h.getUserID(c)
 	if len(userID) == 0 {

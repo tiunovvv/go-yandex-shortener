@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// InitServer creates and returns new Server.
 func InitServer(h *handler.Handler, cfg *config.Config, log *zap.Logger) *http.Server {
 	const (
 		maxHeaderBytes = 20

@@ -14,11 +14,13 @@ import (
 	"go.uber.org/zap"
 )
 
+// Shortener contains bussines logic.
 type Shortener struct {
 	store storage.Store
 	log   *zap.SugaredLogger
 }
 
+// NewShortener creates new Shortener.
 func NewShortener(store storage.Store, log *zap.SugaredLogger) *Shortener {
 	return &Shortener{
 		store: store,
@@ -26,6 +28,7 @@ func NewShortener(store storage.Store, log *zap.SugaredLogger) *Shortener {
 	}
 }
 
+// GetShortURL generates and saves new short URL or gets it from storage if exists.
 func (sh *Shortener) GetShortURL(ctx context.Context, fullURL string, userID string) (string, error) {
 	shortURL := generateShortURL()
 	err := sh.store.SaveURL(ctx, shortURL, fullURL, userID)
@@ -42,6 +45,7 @@ func (sh *Shortener) GetShortURL(ctx context.Context, fullURL string, userID str
 	return shortURL, nil
 }
 
+// GetShortURLBatch generates and saves new short URL list or gets it from storage if exists.
 func (sh *Shortener) GetShortURLBatch(
 	ctx context.Context,
 	reqSlice []models.ReqAPIBatch,
@@ -64,6 +68,7 @@ func (sh *Shortener) GetShortURLBatch(
 	return resSlice, nil
 }
 
+// GetFullURL gets full URL from storage by short URL.
 func (sh *Shortener) GetFullURL(ctx context.Context, shortURL string) (string, bool, error) {
 	fullURL, deleteFlag, err := sh.store.GetFullURL(ctx, shortURL)
 	if err != nil {
@@ -72,6 +77,7 @@ func (sh *Shortener) GetFullURL(ctx context.Context, shortURL string) (string, b
 	return fullURL, deleteFlag, nil
 }
 
+// GetURLByUserID returns list of user URLs.
 func (sh *Shortener) GetURLByUserID(ctx context.Context, baseURL string, userID string) []models.UsersURLs {
 	urls := sh.store.GetURLByUserID(ctx, userID)
 	userURLs := make([]models.UsersURLs, len(urls))
@@ -85,6 +91,7 @@ func (sh *Shortener) GetURLByUserID(ctx context.Context, baseURL string, userID 
 	return userURLs
 }
 
+// CheckConnect checks connection to storage.
 func (sh *Shortener) CheckConnect(ctx context.Context) error {
 	if err := sh.store.GetPing(ctx); err != nil {
 		return fmt.Errorf("failed to connect store: %w", err)
@@ -92,6 +99,7 @@ func (sh *Shortener) CheckConnect(ctx context.Context) error {
 	return nil
 }
 
+// SetDeletedFlag acynchronously sets deleted flag in storage for list of short URL in request body.
 func (sh *Shortener) SetDeletedFlag(ctx context.Context, userID string, shortURLSlice []string) {
 	const countOfWorkers = 3
 	jobQueue := make(chan Job, countOfWorkers)
@@ -114,6 +122,7 @@ func (sh *Shortener) SetDeletedFlag(ctx context.Context, userID string, shortURL
 	}()
 }
 
+// generateShortURL generates new short URL from random 8 symbols.
 func generateShortURL() string {
 	rand.New(rand.NewSource(time.Now().UnixNano()))
 	const length = 8

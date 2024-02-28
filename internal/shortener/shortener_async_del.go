@@ -7,11 +7,13 @@ import (
 	"go.uber.org/zap"
 )
 
+// Job need userID and shortURL to set deleted flag.
 type Job struct {
 	userID   string
 	shortURL string
 }
 
+// Worker processes jobs from jobQueue using store.
 type Worker struct {
 	jobQueue chan Job
 	log      *zap.SugaredLogger
@@ -19,11 +21,13 @@ type Worker struct {
 	id       int
 }
 
+// Dispatcher distributes jobs using workerPool.
 type Dispatcher struct {
 	jobQueue   chan Job
 	workerPool []*Worker
 }
 
+// NewWorker creates and returns new Worker.
 func NewWorker(id int, jobQueue chan Job, store storage.Store, log *zap.SugaredLogger) *Worker {
 	return &Worker{
 		id:       id,
@@ -33,6 +37,7 @@ func NewWorker(id int, jobQueue chan Job, store storage.Store, log *zap.SugaredL
 	}
 }
 
+// NewDispatcher creates and returns new Dispatcher that distributes jobs to workers.
 func NewDispatcher(
 	ctx context.Context,
 	workerCount int,
@@ -52,6 +57,7 @@ func NewDispatcher(
 	}
 }
 
+// Start gets jobs from jobQueue and sends them to workers.
 func (w *Worker) Start(ctx context.Context) {
 	for job := range w.jobQueue {
 		if err := w.store.SetDeletedFlag(ctx, job.userID, job.shortURL); err != nil {

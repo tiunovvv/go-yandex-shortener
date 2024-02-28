@@ -13,18 +13,21 @@ import (
 	"go.uber.org/zap"
 )
 
+// URLsJSON structer of file memmory.
 type URLsJSON struct {
 	UUID        string `json:"uuid"`
 	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
 }
 
+// File struct for file storage.
 type File struct {
 	memory *Memory
 	file   *os.File
 	log    *zap.SugaredLogger
 }
 
+// NewFile creates new File storage of get URLs from existing file.
 func NewFile(filePath string, log *zap.SugaredLogger) (Store, error) {
 	memory := &Memory{urls: make(map[string]URLInfo)}
 	const perm = 0666
@@ -40,6 +43,7 @@ func NewFile(filePath string, log *zap.SugaredLogger) (Store, error) {
 	return f, nil
 }
 
+// loadURLs loads URLs from temp file.
 func (f *File) loadURLs() error {
 	scanner := bufio.NewScanner(f.file)
 
@@ -61,6 +65,7 @@ func (f *File) loadURLs() error {
 	return nil
 }
 
+// SaveURL saves all info about new URL in local map and in temp file.
 func (f *File) SaveURL(ctx context.Context, shortURL string, fullURL string, userID string) error {
 	if err := f.memory.SaveURL(ctx, shortURL, fullURL, userID); err != nil {
 		if errors.Is(err, myErrors.ErrURLAlreadySaved) {
@@ -74,14 +79,17 @@ func (f *File) SaveURL(ctx context.Context, shortURL string, fullURL string, use
 	return nil
 }
 
+// GetFullURL fullURL by shortURL from in-memmory.
 func (f *File) GetFullURL(ctx context.Context, shortURL string) (string, bool, error) {
 	return f.memory.GetFullURL(ctx, shortURL)
 }
 
+// GetShortURL shortURL by fullURL from in-memmory.
 func (f *File) GetShortURL(ctx context.Context, fullURL string) string {
 	return f.memory.GetShortURL(ctx, fullURL)
 }
 
+// SaveURLBatch saves all info about new URL list in local map and in temp file.
 func (f *File) SaveURLBatch(ctx context.Context, urls map[string]string, userID string) error {
 	if err := f.memory.SaveURLBatch(ctx, urls, userID); err != nil {
 		return fmt.Errorf("failed to save URL slice %w", err)
@@ -94,18 +102,22 @@ func (f *File) SaveURLBatch(ctx context.Context, urls map[string]string, userID 
 	return nil
 }
 
+// GetURLByUserID returns list of user URLs from in-memmory.
 func (f *File) GetURLByUserID(ctx context.Context, userID string) map[string]string {
 	return f.memory.GetURLByUserID(ctx, userID)
 }
 
+// SetDeletedFlag sets deleted flag for short URL in local map.
 func (f *File) SetDeletedFlag(ctx context.Context, userID string, shortURL string) error {
 	return f.memory.SetDeletedFlag(ctx, userID, shortURL)
 }
 
+// GetPing method needed for implementation of Store interface.
 func (f *File) GetPing(ctx context.Context) error {
 	return nil
 }
 
+// Close closes temp file.
 func (f *File) Close() error {
 	if err := f.file.Close(); err != nil {
 		return fmt.Errorf("failed to close file: %w", err)
@@ -113,6 +125,7 @@ func (f *File) Close() error {
 	return nil
 }
 
+// writeURLInFile save shortURL and fullURL in temp file.
 func (f *File) writeURLInFile(shortURL string, fullURL string) {
 	writer := bufio.NewWriter(f.file)
 

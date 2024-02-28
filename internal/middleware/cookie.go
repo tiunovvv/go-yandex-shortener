@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// SetCookie sets userID in cookie and saves it in session.
 func SetCookie(log *zap.SugaredLogger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		const userIDKey = "user_id"
@@ -37,6 +38,7 @@ func SetCookie(log *zap.SugaredLogger) gin.HandlerFunc {
 	}
 }
 
+// generateUniqueUserID generates random ID for user.
 func generateUniqueUserID() (string, error) {
 	uuid, err := uuid.NewV4()
 	return uuid.String(), err

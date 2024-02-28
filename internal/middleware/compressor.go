@@ -16,11 +16,13 @@ type compressWriter struct {
 	gin.ResponseWriter
 }
 
+// Write helps to implement gin body writer interface.
 func (c *compressWriter) Write(p []byte) (int, error) {
 	w, err := c.Writer.Write(p)
 	return w, fmt.Errorf("failed to write by compressor: %w", err)
 }
 
+// GinGzip compresses and decompressesresponse body with gzip.
 func GinGzip(log *zap.SugaredLogger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		const (

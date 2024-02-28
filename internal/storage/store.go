@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// Store interface union of all storage types.
 type Store interface {
 	GetShortURL(ctx context.Context, fullURL string) string
 	GetFullURL(ctx context.Context, shortURL string) (string, bool, error)
@@ -18,6 +19,8 @@ type Store interface {
 	Close() error
 }
 
+// NewStore creates DB storage, if error creates file storage that imlements in-memory storage,
+// if error creates only in-memory storage.
 func NewStore(ctx context.Context, cfg *config.Config, log *zap.SugaredLogger) (Store, error) {
 	if len(cfg.DSN) != 0 {
 		store, err := NewDB(ctx, cfg.DSN, log)

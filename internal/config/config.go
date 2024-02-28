@@ -9,6 +9,7 @@ import (
 	"sync"
 )
 
+// Config struct.
 type Config struct {
 	ServerAddress string
 	BaseURL       string
@@ -16,11 +17,13 @@ type Config struct {
 	DSN           string
 }
 
+// Varables for singletons.
 var (
 	config *Config
 	once   sync.Once
 )
 
+// GetConfig singleton returns the config.
 func GetConfig() *Config {
 	once.Do(
 		func() {
@@ -41,6 +44,7 @@ func GetConfig() *Config {
 	return config
 }
 
+// getServerAddress returns the server address from environment variable.
 func getServerAddress(flagServerAddress *string) string {
 	if envServerAddress, ok := os.LookupEnv("SERVER_ADDRESS"); ok {
 		return envServerAddress
@@ -49,6 +53,7 @@ func getServerAddress(flagServerAddress *string) string {
 	return *flagServerAddress
 }
 
+// getBaseURL returns the base URL from environment variable.
 func getBaseURL(flagBaseURL *string) string {
 	if envBaseURL, ok := os.LookupEnv("BASE_URL"); ok && checkBaseURL(envBaseURL) {
 		return envBaseURL
@@ -57,6 +62,7 @@ func getBaseURL(flagBaseURL *string) string {
 	return *flagBaseURL
 }
 
+// getFilePath returns the file path from environment variable.
 func getFilePath(filePath *string) string {
 	if envFilePath, ok := os.LookupEnv("FILE_STORAGE_PATH"); ok {
 		return envFilePath
@@ -65,6 +71,7 @@ func getFilePath(filePath *string) string {
 	return *filePath
 }
 
+// getDatabaseDsn returns the database DSN from environment variable.
 func getDatabaseDsn(databaseDsn *string) string {
 	if envDatabaseDsn, ok := os.LookupEnv("DATABASE_DSN"); ok {
 		return envDatabaseDsn
@@ -73,6 +80,7 @@ func getDatabaseDsn(databaseDsn *string) string {
 	return *databaseDsn
 }
 
+// checkBaseURL checks if the base URL is in a form tls://host:port.
 func checkBaseURL(str string) bool {
 	substr := strings.Split(str, ":")
 	const (
