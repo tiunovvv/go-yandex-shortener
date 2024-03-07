@@ -295,3 +295,65 @@ func TestPostApiHandler(t *testing.T) {
 		})
 	}
 }
+
+func TestGetPing(t *testing.T) {
+	type post struct {
+		request string
+	}
+	type want struct {
+		statusCode int
+	}
+	tests := []struct {
+		name string
+		post post
+		want want
+	}{
+		{
+			name: "positive test",
+			post: post{
+				request: "/ping",
+			},
+			want: want{
+				statusCode: http.StatusOK,
+			},
+		},
+	}
+
+	config := &config.Config{
+		BaseURL:       "http://localhost:8080/",
+		ServerAddress: "localhost:8080",
+		FilePath:      "",
+		DSN:           "",
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, tt.post.request, nil)
+
+			w := httptest.NewRecorder()
+			logger, err := zap.NewDevelopment()
+			if err != nil {
+				log.Fatalf("failed to initialize logger: %v", err)
+				return
+			}
+
+			log := logger.Sugar()
+
+			store, err := storage.NewStore(context.Background(), config, log)
+			if err != nil {
+				log.Fatalf("failed to create storage: %v", err)
+				return
+			}
+			shortener := shortener.NewShortener(store, log)
+			handler := NewHandler(config, shortener, log)
+
+			router := handler.InitRoutes()
+			router.ServeHTTP(w, request)
+			result := w.Result()
+
+			assert.Equal(t, tt.want.statusCode, result.StatusCode)
+			err = result.Body.Close()
+			require.NoError(t, err)
+		})
+	}
+}

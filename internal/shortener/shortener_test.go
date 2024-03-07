@@ -308,3 +308,52 @@ func TestGetURLByUserID(t *testing.T) {
 		})
 	}
 }
+
+func TestCheckConnect(t *testing.T) {
+	type fields struct {
+		store *mocks.MockStore
+		log   *zap.SugaredLogger
+	}
+	tests := []struct {
+		name    string
+		prepare func(f *fields)
+		err     error
+	}{
+		{
+			name:    "successful get",
+			prepare: func(f *fields) { f.store.EXPECT().GetPing(gomock.Any()).Return(nil) },
+			err:     nil,
+		},
+		{
+			name:    "unsuccessful get",
+			prepare: func(f *fields) { f.store.EXPECT().GetPing(gomock.Any()).Return(fmt.Errorf("error")) },
+			err:     fmt.Errorf("error"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			f := fields{
+				store: mocks.NewMockStore(ctrl),
+				log:   zap.NewNop().Sugar(),
+			}
+
+			if tt.prepare != nil {
+				tt.prepare(&f)
+			}
+
+			sh := &Shortener{
+				store: f.store,
+				log:   f.log,
+			}
+
+			err := sh.CheckConnect(context.Background())
+			if tt.err != nil {
+				assert.Error(t, err)
+			}
+		})
+	}
+}
