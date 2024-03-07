@@ -7,19 +7,23 @@ import (
 	"go.uber.org/zap"
 )
 
+// queryTracer needs to show info about query execution.
 type queryTracer struct {
-	log *zap.Logger
+	log *zap.SugaredLogger
 }
 
-func NewQueryTracer(logger *zap.Logger) *queryTracer {
-	return &queryTracer{logger}
+// NewQueryTracer creates new QueryTracer.
+func NewQueryTracer(log *zap.SugaredLogger) *queryTracer {
+	return &queryTracer{log}
 }
 
+// TraceQueryStart returns information about query execution.
 func (t *queryTracer) TraceQueryStart(ctx context.Context, _ *pgx.Conn, data pgx.TraceQueryStartData) context.Context {
-	t.log.Sugar().Infof("Running query %s (%v)", data.SQL, data.Args)
+	t.log.Infof("Running query %s (%v)", data.SQL, data.Args)
 	return ctx
 }
 
+// TraceQueryStart returns information after query.
 func (t *queryTracer) TraceQueryEnd(_ context.Context, _ *pgx.Conn, data pgx.TraceQueryEndData) {
-	t.log.Sugar().Infof("%v", data.CommandTag)
+	t.log.Infof("%v", data.CommandTag)
 }

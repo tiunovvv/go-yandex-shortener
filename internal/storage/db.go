@@ -20,18 +20,20 @@ import (
 
 const insertSchemaURLs = `INSERT INTO urls (short_url, full_url, user_id, deleted_flag) VALUES ($1, $2, $3, $4)`
 
+// DB postgres storage implementation.
 type DB struct {
-	pool   *pgxpool.Pool
-	logger *zap.Logger
+	pool *pgxpool.Pool
+	log  *zap.SugaredLogger
 }
 
-func NewDB(ctx context.Context, dsn string, logger *zap.Logger) (Store, error) {
+// NewDB creates new DB or connects to existing and runs migrations.
+func NewDB(ctx context.Context, dsn string, log *zap.SugaredLogger) (Store, error) {
 	poolCfg, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse the DSN: %w", err)
 	}
 
-	queryTracer := NewQueryTracer(logger)
+	queryTracer := NewQueryTracer(log)
 	poolCfg.ConnConfig.Tracer = queryTracer
 	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
@@ -45,13 +47,14 @@ func NewDB(ctx context.Context, dsn string, logger *zap.Logger) (Store, error) {
 		return nil, fmt.Errorf("failed to run DB migrations: %w", err)
 	}
 
-	dataBase := &DB{pool: pool, logger: logger}
+	dataBase := &DB{pool: pool, log: log}
 	return dataBase, nil
 }
 
 //go:embed migrations/*.sql
 var migrationsDir embed.FS
 
+// runMigrations create tables.
 func runMigrations(dsn string) error {
 	d, err := iofs.New(migrationsDir, "migrations")
 	if err != nil {
@@ -70,6 +73,7 @@ func runMigrations(dsn string) error {
 	return nil
 }
 
+// GetPing check connection to database.
 func (db *DB) GetPing(ctx context.Context) error {
 	if err := db.pool.Ping(ctx); err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
@@ -77,6 +81,7 @@ func (db *DB) GetPing(ctx context.Context) error {
 	return nil
 }
 
+// SaveURL saves all info about new URL in database.
 func (db *DB) SaveURL(ctx context.Context, shortURL string, fullURL string, userID string) error {
 	var shortURLFromDB string
 
@@ -92,6 +97,7 @@ func (db *DB) SaveURL(ctx context.Context, shortURL string, fullURL string, user
 	return nil
 }
 
+// GetFullURL gets full URL from database by short URL.
 func (db *DB) GetFullURL(ctx context.Context, shortURL string) (string, bool, error) {
 	const selectSchemaFullURL = `SELECT full_url, deleted_flag FROM urls WHERE short_url = $1;`
 
@@ -107,6 +113,7 @@ func (db *DB) GetFullURL(ctx context.Context, shortURL string) (string, bool, er
 	return fullURL, deletedFlag, nil
 }
 
+// GetShortURL gets short URL from database by full URL.
 func (db *DB) GetShortURL(ctx context.Context, fullURL string) string {
 	const selectSchemaShortURL = `SELECT short_url FROM urls WHERE full_url = $1;`
 
@@ -120,6 +127,7 @@ func (db *DB) GetShortURL(ctx context.Context, fullURL string) string {
 	return shortURL
 }
 
+// SaveURLBatch saves all info about new URL list in database.
 func (db *DB) SaveURLBatch(ctx context.Context, urls map[string]string, userID string) error {
 	tx, err := db.pool.Begin(ctx)
 	if err != nil {
@@ -128,7 +136,7 @@ func (db *DB) SaveURLBatch(ctx context.Context, urls map[string]string, userID s
 
 	defer func() {
 		if err := tx.Rollback(ctx); err != nil {
-			db.logger.Sugar().Infof("failed to rollback: %w", err)
+			db.log.Infof("failed to rollback: %w", err)
 		}
 	}()
 
@@ -141,7 +149,7 @@ func (db *DB) SaveURLBatch(ctx context.Context, urls map[string]string, userID s
 	results := db.pool.SendBatch(ctx, batch)
 	defer func() {
 		if err := results.Close(); err != nil {
-			db.logger.Sugar().Infof("failed to close batch results: %w", err)
+			db.log.Infof("failed to close batch results: %w", err)
 		}
 	}()
 
@@ -156,12 +164,13 @@ func (db *DB) SaveURLBatch(ctx context.Context, urls map[string]string, userID s
 	return nil
 }
 
+// GetURLByUserID returns list of user URLs.
 func (db *DB) GetURLByUserID(ctx context.Context, userID string) map[string]string {
 	const selectSchemaURLsByUserID = `SELECT short_url, full_url FROM urls WHERE user_id = $1;`
 
 	rows, err := db.pool.Query(ctx, selectSchemaURLsByUserID, userID)
 	if err != nil {
-		db.logger.Sugar().Errorf("failed to select by user_id: %w", err)
+		db.log.Errorf("failed to select by user_id: %w", err)
 		return nil
 	}
 
@@ -172,7 +181,7 @@ func (db *DB) GetURLByUserID(ctx context.Context, userID string) map[string]stri
 		var shortURL, fullURL string
 		err := rows.Scan(&shortURL, &fullURL)
 		if err != nil {
-			db.logger.Sugar().Errorf("failed to get rows from select by user_id: %w", err)
+			db.log.Errorf("failed to get rows from select by user_id: %w", err)
 		}
 		urls[shortURL] = fullURL
 	}
@@ -180,6 +189,7 @@ func (db *DB) GetURLByUserID(ctx context.Context, userID string) map[string]stri
 	return urls
 }
 
+// SetDeletedFlag sets deleted flag for short URL.
 func (db *DB) SetDeletedFlag(ctx context.Context, userID string, shortURL string) error {
 	const updateSchemaDeletedFlag = `UPDATE urls SET deleted_flag = $1 WHERE short_url = $2 AND user_id = $3;`
 
@@ -190,6 +200,7 @@ func (db *DB) SetDeletedFlag(ctx context.Context, userID string, shortURL string
 	return nil
 }
 
+// Close closes connection to database.
 func (db *DB) Close() error {
 	db.pool.Close()
 	return nil
